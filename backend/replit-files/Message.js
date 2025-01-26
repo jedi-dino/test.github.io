@@ -13,9 +13,17 @@ const messageSchema = new mongoose.Schema({
   },
   content: {
     type: String,
-    required: true,
     trim: true,
     maxlength: 1000
+  },
+  mediaType: {
+    type: String,
+    enum: ['image', 'video', null],
+    default: null
+  },
+  mediaUrl: {
+    type: String,
+    default: null
   },
   read: {
     type: Boolean,
@@ -126,6 +134,8 @@ messageSchema.statics.getRecentConversations = async function(userId) {
           lastMessage: {
             _id: 1,
             content: 1,
+            mediaType: 1,
+            mediaUrl: 1,
             createdAt: 1,
             read: 1
           },

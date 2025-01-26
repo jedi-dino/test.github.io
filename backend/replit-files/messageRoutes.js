@@ -113,16 +113,37 @@ router.get('/:userId', auth, async (req, res) => {
 // Send a message
 router.post('/', auth, async (req, res) => {
   try {
-    const { recipientId, content } = req.body;
+    const { recipientId, content, media } = req.body;
 
-    if (!content?.trim()) {
-      return res.status(400).json({ message: 'Message content is required' });
+    // Validate that at least content or media is provided
+    if (!content?.trim() && !media) {
+      return res.status(400).json({ message: 'Message content or media is required' });
+    }
+
+    // Validate media if provided
+    let mediaType = null;
+    let mediaUrl = null;
+
+    if (media) {
+      // Check media type from base64 data
+      if (media.startsWith('data:image/')) {
+        mediaType = 'image';
+      } else if (media.startsWith('data:video/')) {
+        mediaType = 'video';
+      } else {
+        return res.status(400).json({ message: 'Invalid media format. Must be image or video.' });
+      }
+
+      // Store the base64 media data
+      mediaUrl = media;
     }
 
     const message = new Message({
       sender: req.user._id,
       recipient: recipientId,
-      content: content.trim(),
+      content: content?.trim() || '',
+      mediaType,
+      mediaUrl,
       read: false
     });
 

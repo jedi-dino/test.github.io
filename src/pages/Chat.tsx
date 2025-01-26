@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import UserSearch from '../components/UserSearch'
 import UserMenu from '../components/UserMenu'
 import RecentChats from '../components/RecentChats'
+import VideoPlayer from '../components/VideoPlayer'
 import { API_URL } from '../config'
 
 interface Message {
@@ -15,6 +16,8 @@ interface Message {
     username: string
   }
   content: string
+  mediaType: 'image' | 'video' | null
+  mediaUrl: string | null
   createdAt: string
   read: boolean
 }
@@ -38,7 +41,10 @@ function Chat({ user, onLogout }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [isSearching, setIsSearching] = useState(false)
+  const [selectedMedia, setSelectedMedia] = useState<File | null>(null)
+  const [mediaPreview, setMediaPreview] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [isLoading, setIsLoading] = useState(false)
   const pollInterval = useRef<number | null>(null)
 
@@ -70,7 +76,7 @@ function Chat({ user, onLogout }: ChatProps) {
     setIsLoading(true)
     try {
       const response = await fetch(
-        `${API_URL}/api/messages/conversation/${selectedUser.id}`,
+        `${API_URL}/api/messages/${selectedUser.id}`,
         {
           headers: {
             'Authorization': `Bearer ${user.token}`,
@@ -100,11 +106,54 @@ function Chat({ user, onLogout }: ChatProps) {
     }
   }
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file size (10MB limit)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File must be less than 10MB')
+      return
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+      alert('File must be an image or video')
+      return
+    }
+
+    setSelectedMedia(file)
+
+    // Create preview
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setMediaPreview(e.target?.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const clearMedia = () => {
+    setSelectedMedia(null)
+    setMediaPreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedUser || !newMessage.trim()) return
+    if (!selectedUser || (!newMessage.trim() && !selectedMedia)) return
 
     try {
+      let media = null
+      if (selectedMedia) {
+        const reader = new FileReader()
+        media = await new Promise((resolve) => {
+          reader.onload = (e) => resolve(e.target?.result)
+          reader.readAsDataURL(selectedMedia)
+        })
+      }
+
       const response = await fetch(`${API_URL}/api/messages`, {
         method: 'POST',
         headers: {
@@ -114,7 +163,8 @@ function Chat({ user, onLogout }: ChatProps) {
         },
         body: JSON.stringify({
           recipientId: selectedUser.id,
-          content: newMessage.trim()
+          content: newMessage.trim(),
+          media
         })
       })
 
@@ -132,6 +182,7 @@ function Chat({ user, onLogout }: ChatProps) {
       console.log('Sent message response:', data)
       setMessages((prev) => [...prev, data])
       setNewMessage('')
+      clearMedia()
     } catch (error) {
       console.error('Error sending message:', error)
     }
@@ -141,6 +192,65 @@ function Chat({ user, onLogout }: ChatProps) {
     setSelectedUser(chatUser)
     setMessages([])
     setIsSearching(false)
+  }
+
+  const renderMessageContent = (message: Message) => {
+    return (
+      <div>
+        {message.content && <p className="mb-2">{message.content}</p>}
+        {message.mediaUrl && (
+          <div className="mt-2">
+            {message.mediaType === 'image' ? (
+              <img 
+                src={message.mediaUrl} 
+                alt="Message attachment" 
+                className="max-w-xs rounded-lg cursor-pointer"
+                onClick={() => window.open(message.mediaUrl, '_blank')}
+              />
+            ) : message.mediaType === 'video' ? (
+              <VideoPlayer 
+                src={message.mediaUrl}
+                className="max-w-xs rounded-lg"
+              />
+            ) : null}
+          </div>
+        )}
+        <p className={`text-xs mt-1 ${
+          message.sender._id === user.id ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
+        }`}>
+          {new Date(message.createdAt).toLocaleTimeString()}
+        </p>
+      </div>
+    )
+  }
+
+  const renderMediaPreview = () => {
+    if (!mediaPreview) return null
+
+    return (
+      <div className="mb-4 relative inline-block">
+        {selectedMedia?.type.startsWith('image/') ? (
+          <img 
+            src={mediaPreview} 
+            alt="Upload preview" 
+            className="max-h-32 rounded-lg"
+          />
+        ) : selectedMedia?.type.startsWith('video/') ? (
+          <VideoPlayer 
+            src={mediaPreview}
+            className="max-h-32 rounded-lg"
+          />
+        ) : null}
+        <button
+          onClick={clearMedia}
+          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -214,12 +324,7 @@ function Chat({ user, onLogout }: ChatProps) {
                           : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'
                       }`}
                     >
-                      <p>{message.content}</p>
-                      <p className={`text-xs mt-1 ${
-                        message.sender._id === user.id ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
-                      }`}>
-                        {new Date(message.createdAt).toLocaleTimeString()}
-                      </p>
+                      {renderMessageContent(message)}
                     </div>
                   </div>
                 ))
@@ -228,8 +333,9 @@ function Chat({ user, onLogout }: ChatProps) {
             </div>
 
             {/* Message Input */}
-            <form onSubmit={handleSendMessage} className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
-              <div className="flex space-x-4">
+            <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
+              {renderMediaPreview()}
+              <form onSubmit={handleSendMessage} className="flex space-x-4">
                 <input
                   type="text"
                   value={newMessage}
@@ -237,15 +343,31 @@ function Chat({ user, onLogout }: ChatProps) {
                   placeholder="Type a message..."
                   className="input flex-1 dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:placeholder-gray-400"
                 />
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  accept="image/*,video/*"
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="btn btn-secondary dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </button>
                 <button
                   type="submit"
-                  disabled={!newMessage.trim()}
+                  disabled={!newMessage.trim() && !selectedMedia}
                   className="btn btn-primary dark:hover:bg-blue-700"
                 >
                   Send
                 </button>
-              </div>
-            </form>
+              </form>
+            </div>
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
