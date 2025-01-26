@@ -4,6 +4,7 @@ import { API_URL } from '../config'
 interface User {
   _id: string
   username: string
+  profilePicture?: string
 }
 
 interface UserSearchProps {
@@ -151,13 +152,24 @@ function UserSearch({ onSelectUser, currentUserId, token }: UserSearchProps) {
           searchResults.map((user) => (
             <button
               key={user._id}
-              className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white focus:outline-none focus:bg-gray-100 dark:focus:bg-gray-700"
+              className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white focus:outline-none focus:bg-gray-100 dark:focus:bg-gray-700 flex items-center space-x-3"
               onClick={() => onSelectUser({
                 id: user._id,
                 username: user.username
               })}
             >
-              {user.username}
+              <div className="w-10 h-10 rounded-full bg-blue-600 dark:bg-blue-700 flex items-center justify-center text-white font-semibold overflow-hidden">
+                {user.profilePicture ? (
+                  <img 
+                    src={user.profilePicture} 
+                    alt={user.username}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  user.username.slice(0, 2).toUpperCase()
+                )}
+              </div>
+              <span>{user.username}</span>
             </button>
           ))
         )}

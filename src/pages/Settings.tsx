@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ThemeToggle from '../components/ThemeToggle'
+import ProfilePicture from '../components/ProfilePicture'
 import { API_URL } from '../config'
 
 interface SettingsProps {
@@ -8,6 +9,7 @@ interface SettingsProps {
     id: string
     username: string
     token: string
+    profilePicture?: string
   }
 }
 
@@ -18,6 +20,7 @@ function Settings({ user }: SettingsProps) {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [profilePicture, setProfilePicture] = useState(user.profilePicture)
   const navigate = useNavigate()
 
   const handleUpdateUsername = async (e: React.FormEvent) => {
@@ -26,7 +29,7 @@ function Settings({ user }: SettingsProps) {
     setSuccess('')
 
     try {
-      const response = await fetch(`${API_URL}/api/users/profile`, {
+      const response = await fetch(`${API_URL}/api/users/me`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${user.token}`,
@@ -40,7 +43,12 @@ function Settings({ user }: SettingsProps) {
         throw new Error(data.message || 'Failed to update username')
       }
 
+      const data = await response.json()
       setSuccess('Username updated successfully')
+      // Update the username in localStorage
+      const userData = JSON.parse(localStorage.getItem('user') || '{}')
+      userData.username = data.username
+      localStorage.setItem('user', JSON.stringify(userData))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update username')
     }
@@ -57,7 +65,7 @@ function Settings({ user }: SettingsProps) {
     }
 
     try {
-      const response = await fetch(`${API_URL}/api/users/password`, {
+      const response = await fetch(`${API_URL}/api/users/me`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${user.token}`,
@@ -83,6 +91,15 @@ function Settings({ user }: SettingsProps) {
     }
   }
 
+  const handleProfilePictureUpdate = (newPicture: string) => {
+    setProfilePicture(newPicture);
+    setSuccess('Profile picture updated successfully');
+    // Update the profile picture in localStorage
+    const userData = JSON.parse(localStorage.getItem('user') || '{}')
+    userData.profilePicture = newPicture
+    localStorage.setItem('user', JSON.stringify(userData))
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
@@ -105,6 +122,16 @@ function Settings({ user }: SettingsProps) {
                 <span className="text-gray-700 dark:text-gray-300">Dark Mode</span>
                 <ThemeToggle />
               </div>
+            </div>
+
+            {/* Profile Picture */}
+            <div className="p-6">
+              <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Profile Picture</h2>
+              <ProfilePicture
+                currentPicture={profilePicture}
+                token={user.token}
+                onUpdate={handleProfilePictureUpdate}
+              />
             </div>
 
             {/* Profile Settings */}

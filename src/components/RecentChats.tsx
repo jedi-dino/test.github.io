@@ -11,6 +11,7 @@ interface Message {
 interface ChatUser {
   _id: string
   username: string
+  profilePicture?: string
 }
 
 interface Conversation {
@@ -131,8 +132,16 @@ function RecentChats({ token, currentUserId, onSelectUser, selectedUserId }: Rec
             }`}
           >
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-full bg-blue-600 dark:bg-blue-700 flex items-center justify-center text-white font-semibold">
-                {conversation.user.username.slice(0, 2).toUpperCase()}
+              <div className="w-10 h-10 rounded-full bg-blue-600 dark:bg-blue-700 flex items-center justify-center text-white font-semibold overflow-hidden">
+                {conversation.user.profilePicture ? (
+                  <img 
+                    src={conversation.user.profilePicture} 
+                    alt={conversation.user.username}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  conversation.user.username.slice(0, 2).toUpperCase()
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
