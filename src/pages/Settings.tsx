@@ -11,9 +11,15 @@ interface SettingsProps {
     token: string
     profilePicture?: string
   }
+  onUpdate: (updatedData: Partial<{
+    id: string
+    username: string
+    token: string
+    profilePicture?: string
+  }>) => void
 }
 
-function Settings({ user }: SettingsProps) {
+function Settings({ user, onUpdate }: SettingsProps) {
   const [newUsername, setNewUsername] = useState(user.username)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -45,10 +51,7 @@ function Settings({ user }: SettingsProps) {
 
       const data = await response.json()
       setSuccess('Username updated successfully')
-      // Update the username in localStorage
-      const userData = JSON.parse(localStorage.getItem('user') || '{}')
-      userData.username = data.username
-      localStorage.setItem('user', JSON.stringify(userData))
+      onUpdate({ username: data.username })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update username')
     }
@@ -92,13 +95,10 @@ function Settings({ user }: SettingsProps) {
   }
 
   const handleProfilePictureUpdate = (newPicture: string) => {
-    setProfilePicture(newPicture);
-    setSuccess('Profile picture updated successfully');
-    // Update the profile picture in localStorage
-    const userData = JSON.parse(localStorage.getItem('user') || '{}')
-    userData.profilePicture = newPicture
-    localStorage.setItem('user', JSON.stringify(userData))
-  };
+    setProfilePicture(newPicture)
+    setSuccess('Profile picture updated successfully')
+    onUpdate({ profilePicture: newPicture })
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

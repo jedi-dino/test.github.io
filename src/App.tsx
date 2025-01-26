@@ -9,6 +9,7 @@ interface User {
   id: string
   username: string
   token: string
+  profilePicture?: string
 }
 
 function App() {
@@ -25,6 +26,14 @@ function App() {
   const handleLogout = () => {
     setUser(null)
     localStorage.removeItem('user')
+  }
+
+  const handleProfileUpdate = (updatedData: Partial<User>) => {
+    if (user) {
+      const newUserData = { ...user, ...updatedData }
+      setUser(newUserData)
+      localStorage.setItem('user', JSON.stringify(newUserData))
+    }
   }
 
   return (
@@ -54,7 +63,7 @@ function App() {
           path="/settings"
           element={
             user ? (
-              <Settings user={user} />
+              <Settings user={user} onUpdate={handleProfileUpdate} />
             ) : (
               <Navigate to="/login" replace />
             )
