@@ -6,6 +6,7 @@ interface UserMenuProps {
   user: {
     id: string
     username: string
+    profilePicture?: string
   }
   onLogout: () => void
 }
@@ -38,8 +39,16 @@ function UserMenu({ user, onLogout }: UserMenuProps) {
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
-        <div className="w-10 h-10 rounded-full bg-blue-600 dark:bg-blue-700 flex items-center justify-center text-white font-semibold hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors">
-          {getInitials(user.username)}
+        <div className="w-10 h-10 rounded-full bg-blue-600 dark:bg-blue-700 flex items-center justify-center text-white font-semibold hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors overflow-hidden">
+          {user.profilePicture ? (
+            <img 
+              src={user.profilePicture} 
+              alt={user.username}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            getInitials(user.username)
+          )}
         </div>
       </button>
 
