@@ -42,24 +42,30 @@ function RecentChats({ token, currentUserId, onSelectUser, selectedUserId }: Rec
 
   const fetchConversations = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/messages/conversations/recent`, {
+      const response = await fetch(`${API_URL}/api/messages/recent`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
+          'Accept': 'application/json'
         }
       })
 
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.message || 'Failed to fetch conversations')
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.message || `Failed to fetch conversations: ${response.status}`)
+      }
+
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned invalid response format')
       }
 
       const data = await response.json()
-      setConversations(data)
+      setConversations(Array.isArray(data) ? data : [])
       setError(null)
     } catch (error) {
       console.error('Error fetching conversations:', error)
-      setError('Failed to load recent conversations')
+      setError(error instanceof Error ? error.message : 'Failed to load recent conversations')
     } finally {
       setIsLoading(false)
     }

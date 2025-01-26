@@ -16,61 +16,102 @@ function UserSearch({ onSelectUser, currentUserId, token }: UserSearchProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [allUsers, setAllUsers] = useState<User[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchAllUsers = async () => {
+    const fetchInitialUsers = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/users/search?term=`, {
+        const response = await fetch(`${API_URL}/api/users/search?query=`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
+            'Accept': 'application/json'
           }
         })
 
         if (!response.ok) {
-          throw new Error('Failed to fetch users')
+          const data = await response.json().catch(() => ({}))
+          throw new Error(data.message || `Failed to fetch users: ${response.status}`)
+        }
+
+        const contentType = response.headers.get('content-type')
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error('Server returned invalid response format')
         }
 
         const users = await response.json()
-        setAllUsers(users.filter((user: User) => user.id !== currentUserId))
+        setSearchResults(users.filter((user: User) => user.id !== currentUserId))
+        setError(null)
       } catch (error) {
         console.error('Error fetching users:', error)
+        setError(error instanceof Error ? error.message : 'Failed to fetch users')
+        setSearchResults([])
       }
     }
 
-    fetchAllUsers()
+    fetchInitialUsers()
   }, [currentUserId, token])
 
   const handleSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const term = e.target.value
     setSearchTerm(term)
+    setError(null)
 
     if (!term.trim()) {
-      setSearchResults(allUsers)
+      // Fetch all users when search term is empty
+      try {
+        const response = await fetch(`${API_URL}/api/users/search?query=`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        })
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}))
+          throw new Error(data.message || `Failed to fetch users: ${response.status}`)
+        }
+
+        const users = await response.json()
+        setSearchResults(users.filter((user: User) => user.id !== currentUserId))
+      } catch (error) {
+        console.error('Error fetching users:', error)
+        setError(error instanceof Error ? error.message : 'Failed to fetch users')
+        setSearchResults([])
+      }
       return
     }
 
     setIsLoading(true)
     try {
       const response = await fetch(
-        `${API_URL}/api/users/search?term=${encodeURIComponent(term)}`,
+        `${API_URL}/api/users/search?query=${encodeURIComponent(term)}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
+            'Accept': 'application/json'
           }
         }
       )
 
       if (!response.ok) {
-        throw new Error('Search failed')
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.message || `Search failed: ${response.status}`)
+      }
+
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned invalid response format')
       }
 
       const users = await response.json()
       setSearchResults(users.filter((user: User) => user.id !== currentUserId))
+      setError(null)
     } catch (error) {
       console.error('Search error:', error)
+      setError(error instanceof Error ? error.message : 'Search failed')
       setSearchResults([])
     } finally {
       setIsLoading(false)
@@ -93,16 +134,27 @@ function UserSearch({ onSelectUser, currentUserId, token }: UserSearchProps) {
           </div>
         )}
       </div>
+      {error && (
+        <div className="mt-2 text-sm text-red-500 dark:text-red-400">
+          {error}
+        </div>
+      )}
       <div className="mt-2 bg-white dark:bg-gray-800 rounded-md shadow-lg max-h-48 overflow-y-auto">
-        {(searchTerm ? searchResults : allUsers).map((user) => (
-          <button
-            key={user.id}
-            className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white focus:outline-none focus:bg-gray-100 dark:focus:bg-gray-700"
-            onClick={() => onSelectUser(user)}
-          >
-            {user.username}
-          </button>
-        ))}
+        {searchResults.length === 0 ? (
+          <div className="px-4 py-2 text-gray-500 dark:text-gray-400">
+            {isLoading ? 'Searching...' : 'No users found'}
+          </div>
+        ) : (
+          searchResults.map((user) => (
+            <button
+              key={user.id}
+              className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white focus:outline-none focus:bg-gray-100 dark:focus:bg-gray-700"
+              onClick={() => onSelectUser(user)}
+            >
+              {user.username}
+            </button>
+          ))
+        )}
       </div>
     </div>
   )

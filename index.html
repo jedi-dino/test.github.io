@@ -2,8 +2,10 @@
 <html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/chat.svg" />
+    <link rel="icon" type="image/svg+xml" href="/chat-app/chat.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="A real-time chat application with user search and messaging capabilities" />
+    <meta name="theme-color" content="#1F2937" />
     <title>Chat App</title>
     <script>
       // Immediately apply dark mode if saved or defaulting to dark
@@ -18,5 +20,10 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <noscript>
+      <div style="text-align: center; padding: 20px;">
+        Please enable JavaScript to use this application.
+      </div>
+    </noscript>
   </body>
 </html>

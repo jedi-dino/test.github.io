@@ -64,14 +64,20 @@ function Chat({ user, onLogout }: ChatProps) {
     setIsLoading(true)
     try {
       const response = await fetch(
-        `${API_URL}/api/messages/${selectedUser.id}`,
+        `${API_URL}/api/messages/conversation/${selectedUser.id}`,
         {
           headers: {
             'Authorization': `Bearer ${user.token}`,
             'Content-Type': 'application/json',
+            'Accept': 'application/json'
           }
         }
       )
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.message || `Failed to fetch messages: ${response.status}`)
+      }
 
       const contentType = response.headers.get('content-type')
       if (!contentType || !contentType.includes('application/json')) {
@@ -79,11 +85,7 @@ function Chat({ user, onLogout }: ChatProps) {
       }
 
       const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch messages')
-      }
-
-      setMessages(data)
+      setMessages(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Error fetching messages:', error)
     } finally {
@@ -101,12 +103,18 @@ function Chat({ user, onLogout }: ChatProps) {
         headers: {
           'Authorization': `Bearer ${user.token}`,
           'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
         body: JSON.stringify({
-          receiverId: selectedUser.id,
-          content: newMessage,
+          recipientId: selectedUser.id,
+          content: newMessage.trim()
         })
       })
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.message || `Failed to send message: ${response.status}`)
+      }
 
       const contentType = response.headers.get('content-type')
       if (!contentType || !contentType.includes('application/json')) {
@@ -114,10 +122,6 @@ function Chat({ user, onLogout }: ChatProps) {
       }
 
       const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to send message')
-      }
-
       setMessages((prev) => [...prev, data])
       setNewMessage('')
     } catch (error) {
