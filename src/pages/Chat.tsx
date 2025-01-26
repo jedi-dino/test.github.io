@@ -3,7 +3,7 @@ import UserSearch from '../components/UserSearch'
 import UserMenu from '../components/UserMenu'
 import RecentChats from '../components/RecentChats'
 import VideoPlayer from '../components/VideoPlayer'
-import { API_URL, ENDPOINTS, VALIDATION, ERROR_MESSAGES } from '../config'
+import { API_URL, ENDPOINTS } from '../config'
 
 interface Message {
   _id: string
@@ -36,13 +36,13 @@ interface ChatProps {
   onLogout: () => void
 }
 
-const Chat: React.FC<ChatProps> = ({ user, onLogout }) => {
+const Chat: React.FC<ChatProps> = ({ user, onLogout }): JSX.Element => {
   const [selectedUser, setSelectedUser] = useState<ChatUser | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [selectedMedia, setSelectedMedia] = useState<File | null>(null)
-  const [mediaPreview, setMediaPreview] = useState<string | undefined>(undefined)
+  const [mediaPreview, setMediaPreview] = useState<string>('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -57,14 +57,13 @@ const Chat: React.FC<ChatProps> = ({ user, onLogout }) => {
     scrollToBottom()
   }, [messages])
 
-  // Load last selected user from localStorage
   useEffect(() => {
     const savedUser = localStorage.getItem('selectedChatUser')
     if (savedUser) {
       try {
         const parsedUser = JSON.parse(savedUser)
         setSelectedUser(parsedUser)
-        isInitialLoad.current = true // Set initial load flag
+        isInitialLoad.current = true
       } catch (error) {
         console.error('Error parsing saved user:', error)
       }
@@ -73,16 +72,13 @@ const Chat: React.FC<ChatProps> = ({ user, onLogout }) => {
 
   useEffect(() => {
     if (selectedUser) {
-      // Save selected user to localStorage
       localStorage.setItem('selectedChatUser', JSON.stringify(selectedUser))
       
-      // Only fetch messages if this is the initial load or user selection
       if (isInitialLoad.current) {
         fetchMessages()
         isInitialLoad.current = false
       }
 
-      // Start polling for new messages
       pollInterval.current = window.setInterval(fetchMessages, 5000)
     }
 
@@ -103,24 +99,16 @@ const Chat: React.FC<ChatProps> = ({ user, onLogout }) => {
         {
           headers: {
             'Authorization': `Bearer ${user.token}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
+            'Content-Type': 'application/json'
           }
         }
       )
 
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}))
-        throw new Error(data.message || `Failed to fetch messages: ${response.status}`)
-      }
-
-      const contentType = response.headers.get('content-type')
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Server returned invalid response format')
+        throw new Error('Failed to fetch messages')
       }
 
       const data = await response.json()
-      console.log('Fetched messages:', data)
       setMessages(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Error fetching messages:', error)
@@ -133,13 +121,11 @@ const Chat: React.FC<ChatProps> = ({ user, onLogout }) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validate file size (10MB limit)
     if (file.size > 10 * 1024 * 1024) {
       alert('File must be less than 10MB')
       return
     }
 
-    // Validate file type
     if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
       alert('File must be an image or video')
       return
@@ -147,17 +133,19 @@ const Chat: React.FC<ChatProps> = ({ user, onLogout }) => {
 
     setSelectedMedia(file)
 
-    // Create preview
     const reader = new FileReader()
     reader.onload = (e) => {
-      setMediaPreview(e.target?.result as string)
+      const result = e.target?.result
+      if (typeof result === 'string') {
+        setMediaPreview(result)
+      }
     }
     reader.readAsDataURL(file)
   }
 
   const clearMedia = () => {
     setSelectedMedia(null)
-    setMediaPreview(undefined)
+    setMediaPreview('')
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -181,8 +169,7 @@ const Chat: React.FC<ChatProps> = ({ user, onLogout }) => {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${user.token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           recipientId: selectedUser.id,
@@ -192,17 +179,10 @@ const Chat: React.FC<ChatProps> = ({ user, onLogout }) => {
       })
 
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}))
-        throw new Error(data.message || 'Failed to send message')
-      }
-
-      const contentType = response.headers.get('content-type')
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Server returned invalid response format')
+        throw new Error('Failed to send message')
       }
 
       const data = await response.json()
-      console.log('Sent message response:', data)
       setMessages((prev) => [...prev, data])
       setNewMessage('')
       clearMedia()
@@ -215,7 +195,7 @@ const Chat: React.FC<ChatProps> = ({ user, onLogout }) => {
     setSelectedUser(chatUser)
     setMessages([])
     setIsSearching(false)
-    isInitialLoad.current = true // Reset initial load flag for new user selection
+    isInitialLoad.current = true
   }
 
   const renderMessageContent = (message: Message) => {
@@ -229,13 +209,12 @@ const Chat: React.FC<ChatProps> = ({ user, onLogout }) => {
                 src={message.mediaUrl} 
                 alt="Message attachment" 
                 className="max-w-xs rounded-lg cursor-pointer"
-                onClick={() => message.mediaUrl && window.open(message.mediaUrl, '_blank')}
+                onClick={() => window.open(message.mediaUrl!, '_blank')}
               />
-            ) : message.mediaType === 'video' ? (
-              <VideoPlayer 
-                src={message.mediaUrl}
-                className="max-w-xs rounded-lg"
-              />
+            ) : message.mediaType === 'video' && message.mediaUrl ? (
+              <div className="max-w-xs rounded-lg overflow-hidden">
+                <VideoPlayer src={message.mediaUrl} />
+              </div>
             ) : null}
           </div>
         )}
@@ -260,10 +239,9 @@ const Chat: React.FC<ChatProps> = ({ user, onLogout }) => {
             className="max-h-32 rounded-lg"
           />
         ) : selectedMedia.type.startsWith('video/') ? (
-          <VideoPlayer 
-            src={mediaPreview}
-            className="max-h-32 rounded-lg"
-          />
+          <div className="max-h-32 rounded-lg overflow-hidden">
+            <VideoPlayer src={mediaPreview} />
+          </div>
         ) : null}
         <button
           onClick={clearMedia}

@@ -1,21 +1,18 @@
 import React, { useRef, useEffect } from 'react'
 
 interface VideoPlayerProps {
-  src: string | null | undefined
+  src: string
   className?: string
 }
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, className = '' }) => {
+const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, className = '' }): JSX.Element => {
   const videoRef = useRef<HTMLVideoElement>(null)
 
   useEffect(() => {
-    // Reset video when source changes
     if (videoRef.current) {
       videoRef.current.load()
     }
   }, [src])
-
-  if (!src) return null
 
   const handleError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
     console.error('Error loading video:', e)
