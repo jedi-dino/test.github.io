@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { API_URL, ENDPOINTS } from '../config'
+import { API_URL, ENDPOINTS, VALIDATION } from '../config'
 
 interface RegisterProps {
   onRegister: (userData: { id: string; username: string; token: string }) => void
@@ -13,17 +13,40 @@ const Register: React.FC<RegisterProps> = ({ onRegister }): JSX.Element => {
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!username.trim() || !password.trim()) {
-      setError('Please fill in all fields')
-      return
+  const validateForm = () => {
+    if (!username.trim() || !password.trim() || !confirmPassword.trim()) {
+      setError('All fields are required')
+      return false
     }
 
     if (password !== confirmPassword) {
       setError('Passwords do not match')
-      return
+      return false
     }
+
+    if (username.length < VALIDATION.USERNAME.MIN_LENGTH || 
+        username.length > VALIDATION.USERNAME.MAX_LENGTH) {
+      setError(`Username must be between ${VALIDATION.USERNAME.MIN_LENGTH} and ${VALIDATION.USERNAME.MAX_LENGTH} characters`)
+      return false
+    }
+
+    if (!VALIDATION.USERNAME.PATTERN.test(username)) {
+      setError('Username can only contain letters, numbers, and underscores')
+      return false
+    }
+
+    if (password.length < VALIDATION.PASSWORD.MIN_LENGTH || 
+        password.length > VALIDATION.PASSWORD.MAX_LENGTH) {
+      setError(`Password must be between ${VALIDATION.PASSWORD.MIN_LENGTH} and ${VALIDATION.PASSWORD.MAX_LENGTH} characters`)
+      return false
+    }
+
+    return true
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!validateForm()) return
 
     setIsLoading(true)
     setError('')
@@ -32,10 +55,16 @@ const Register: React.FC<RegisterProps> = ({ onRegister }): JSX.Element => {
       const response = await fetch(`${API_URL}${ENDPOINTS.AUTH.REGISTER}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
         body: JSON.stringify({ username, password })
       })
+
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned invalid response format')
+      }
 
       const data = await response.json()
 

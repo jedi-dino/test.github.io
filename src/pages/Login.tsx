@@ -26,10 +26,16 @@ const Login: React.FC<LoginProps> = ({ onLogin }): JSX.Element => {
       const response = await fetch(`${API_URL}${ENDPOINTS.AUTH.LOGIN}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
         body: JSON.stringify({ username, password })
       })
+
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned invalid response format')
+      }
 
       const data = await response.json()
 
