@@ -9,12 +9,14 @@ New-Item -ItemType File -Name ".nojekyll" -Force
 
 # Initialize git repository if not already initialized
 git init
-git checkout -B main
 git add -A
 git commit -m "deploy"
 
-# Deploy to GitHub Pages using HTTPS
-git push -f https://github.com/jedi-dino/test.github.io.git main:gh-pages
+# Add origin if not already added
+git remote add origin https://github.com/jedi-dino/test.github.io.git
+
+# Deploy to GitHub Pages
+git push origin master --force
 
 # Navigate back
 Set-Location ..
