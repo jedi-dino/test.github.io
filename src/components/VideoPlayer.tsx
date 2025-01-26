@@ -9,7 +9,7 @@ function VideoPlayer({ src, className = '', controls = true }: VideoPlayerProps)
 
   return (
     <video 
-      src={src}
+      src={src as string} // Type assertion since we've already checked for null/undefined
       className={className}
       controls={controls}
     />
