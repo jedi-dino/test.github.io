@@ -1,88 +1,18 @@
-import express from 'express';
-import { auth } from './auth.js';
-import Message from './Message.js';
-import mongoose from 'mongoose';
-
+const express = require('express');
 const router = express.Router();
+const Message = require('./Message');
+const auth = require('./auth');
+const cloudinary = require('cloudinary').v2;
 
-// Get recent conversations
-router.get('/recent', auth, async (req, res) => {
-  try {
-    const messages = await Message.aggregate([
-      {
-        $match: {
-          $or: [
-            { sender: req.user._id },
-            { recipient: req.user._id }
-          ]
-        }
-      },
-      {
-        $sort: { createdAt: -1 }
-      },
-      {
-        $group: {
-          _id: {
-            $cond: [
-              { $eq: ['$sender', req.user._id] },
-              '$recipient',
-              '$sender'
-            ]
-          },
-          lastMessage: { $first: '$$ROOT' },
-          unreadCount: {
-            $sum: {
-              $cond: [
-                {
-                  $and: [
-                    { $eq: ['$recipient', req.user._id] },
-                    { $eq: ['$read', false] }
-                  ]
-                },
-                1,
-                0
-              ]
-            }
-          }
-        }
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'user'
-        }
-      },
-      {
-        $unwind: '$user'
-      },
-      {
-        $project: {
-          _id: 0,
-          user: {
-            _id: '$user._id',
-            username: '$user.username',
-            profilePicture: '$user.profilePicture'
-          },
-          lastMessage: 1,
-          unreadCount: 1
-        }
-      },
-      {
-        $sort: { 'lastMessage.createdAt': -1 }
-      }
-    ]);
-
-    res.json(messages);
-  } catch (error) {
-    console.error('Get recent messages error:', error);
-    res.status(500).json({ message: 'Error getting recent messages' });
-  }
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// Get chat history with a user
-router.get('/:userId', auth, async (req, res) => {
+// Get messages between current user and another user
+router.get('/messages/:userId', auth, async (req, res) => {
   try {
     const messages = await Message.find({
       $or: [
@@ -90,104 +20,118 @@ router.get('/:userId', auth, async (req, res) => {
         { sender: req.params.userId, recipient: req.user._id }
       ]
     })
-    .sort({ createdAt: -1 })
-    .limit(50);
+    .sort({ createdAt: 1 })
+    .populate('sender', 'username')
+    .populate('recipient', 'username');
 
-    // Mark messages as read
-    await Message.updateMany(
-      {
-        sender: req.params.userId,
-        recipient: req.user._id,
-        read: false
-      },
-      { read: true }
-    );
-
-    res.json(messages.reverse());
+    res.json(messages);
   } catch (error) {
-    console.error('Get messages error:', error);
-    res.status(500).json({ message: 'Error getting messages' });
+    console.error('Error fetching messages:', error);
+    res.status(500).json({ message: 'Error fetching messages' });
   }
 });
 
-// Send a message
-router.post('/', auth, async (req, res) => {
+// Send a new message
+router.post('/messages', auth, async (req, res) => {
   try {
     const { recipientId, content, media } = req.body;
 
-    // Validate that at least content or media is provided
-    if (!content?.trim() && !media) {
-      return res.status(400).json({ message: 'Message content or media is required' });
-    }
-
-    // Validate media if provided
-    let mediaType = null;
     let mediaUrl = null;
+    let mediaType = null;
 
+    // Handle media upload if present
     if (media) {
-      // Check media type from base64 data
-      if (media.startsWith('data:image/')) {
-        mediaType = 'image';
-      } else if (media.startsWith('data:video/')) {
-        mediaType = 'video';
-      } else {
-        return res.status(400).json({ message: 'Invalid media format. Must be image or video.' });
-      }
+      try {
+        // Upload to Cloudinary
+        const result = await cloudinary.uploader.upload(media, {
+          resource_type: 'auto',
+          folder: 'chat-app'
+        });
 
-      // Store the base64 media data
-      mediaUrl = media;
+        mediaUrl = result.secure_url;
+        mediaType = result.resource_type === 'video' ? 'video' : 'image';
+      } catch (uploadError) {
+        console.error('Error uploading media:', uploadError);
+        return res.status(400).json({ message: 'Error uploading media' });
+      }
     }
 
     const message = new Message({
       sender: req.user._id,
       recipient: recipientId,
-      content: content?.trim() || '',
-      mediaType,
+      content: content || '',
       mediaUrl,
-      read: false
+      mediaType
     });
 
     await message.save();
+
+    // Populate sender and recipient info before sending response
+    await message.populate('sender', 'username');
+    await message.populate('recipient', 'username');
+
     res.status(201).json(message);
   } catch (error) {
-    console.error('Send message error:', error);
+    console.error('Error sending message:', error);
     res.status(500).json({ message: 'Error sending message' });
   }
 });
 
-// Delete conversation with a user
-router.delete('/:userId', auth, async (req, res) => {
+// Mark messages as read
+router.patch('/messages/read/:senderId', auth, async (req, res) => {
   try {
-    // Convert string IDs to ObjectIds
-    const userId = new mongoose.Types.ObjectId(req.params.userId);
-    const currentUserId = new mongoose.Types.ObjectId(req.user._id);
+    await Message.updateMany(
+      {
+        sender: req.params.senderId,
+        recipient: req.user._id,
+        read: false
+      },
+      {
+        read: true
+      }
+    );
 
-    console.log('Deleting messages between:', {
-      currentUserId: currentUserId.toString(),
-      userId: userId.toString()
-    });
-
-    const result = await Message.deleteMany({
-      $or: [
-        { sender: currentUserId, recipient: userId },
-        { sender: userId, recipient: currentUserId }
-      ]
-    });
-
-    console.log('Delete result:', result);
-
-    if (result.deletedCount === 0) {
-      return res.status(404).json({ message: 'No messages found to delete' });
-    }
-
-    res.json({ 
-      message: 'Conversation deleted successfully',
-      deletedCount: result.deletedCount
-    });
+    res.json({ message: 'Messages marked as read' });
   } catch (error) {
-    console.error('Delete conversation error:', error);
-    res.status(500).json({ message: 'Error deleting conversation' });
+    console.error('Error marking messages as read:', error);
+    res.status(500).json({ message: 'Error marking messages as read' });
   }
 });
 
-export default router;
+// Get recent chats (unique users the current user has messaged with)
+router.get('/messages/recent/chats', auth, async (req, res) => {
+  try {
+    const messages = await Message.find({
+      $or: [
+        { sender: req.user._id },
+        { recipient: req.user._id }
+      ]
+    })
+    .sort({ createdAt: -1 })
+    .populate('sender', 'username')
+    .populate('recipient', 'username');
+
+    // Get unique users from messages
+    const users = new Map();
+    messages.forEach(message => {
+      const otherUser = message.sender._id.toString() === req.user._id.toString()
+        ? message.recipient
+        : message.sender;
+      
+      if (!users.has(otherUser._id.toString())) {
+        users.set(otherUser._id.toString(), {
+          id: otherUser._id,
+          username: otherUser.username,
+          lastMessage: message
+        });
+      }
+    });
+
+    res.json(Array.from(users.values()));
+  } catch (error) {
+    console.error('Error fetching recent chats:', error);
+    res.status(500).json({ message: 'Error fetching recent chats' });
+  }
+});
+
+module.exports = router;
