@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { STORAGE_KEYS } from './config'
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Chat from './pages/Chat'
@@ -12,17 +11,17 @@ interface User {
   token: string
 }
 
-const App: React.FC = () => {
+const App: React.FC = (): JSX.Element => {
   const [user, setUser] = useState<User | null>(() => {
-    const savedUser = localStorage.getItem(STORAGE_KEYS.USER)
+    const savedUser = localStorage.getItem('user')
     return savedUser ? JSON.parse(savedUser) : null
   })
 
   useEffect(() => {
     if (user) {
-      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user))
+      localStorage.setItem('user', JSON.stringify(user))
     } else {
-      localStorage.removeItem(STORAGE_KEYS.USER)
+      localStorage.removeItem('user')
     }
   }, [user])
 
@@ -32,18 +31,27 @@ const App: React.FC = () => {
 
   const handleLogout = () => {
     setUser(null)
-    localStorage.removeItem(STORAGE_KEYS.USER)
-    localStorage.removeItem(STORAGE_KEYS.SELECTED_CHAT_USER)
+    localStorage.removeItem('user')
   }
 
   return (
     <Router>
       <Routes>
         <Route
+          path="/"
+          element={
+            user ? (
+              <Navigate to="/chat" replace />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
           path="/login"
           element={
             user ? (
-              <Navigate to="/" replace />
+              <Navigate to="/chat" replace />
             ) : (
               <Login onLogin={handleLogin} />
             )
@@ -53,9 +61,19 @@ const App: React.FC = () => {
           path="/register"
           element={
             user ? (
-              <Navigate to="/" replace />
+              <Navigate to="/chat" replace />
             ) : (
-              <Register />
+              <Register onRegister={handleLogin} />
+            )
+          }
+        />
+        <Route
+          path="/chat"
+          element={
+            user ? (
+              <Chat user={user} onLogout={handleLogout} />
+            ) : (
+              <Navigate to="/login" replace />
             )
           }
         />
@@ -64,16 +82,6 @@ const App: React.FC = () => {
           element={
             user ? (
               <Settings user={user} onLogout={handleLogout} />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-        <Route
-          path="/"
-          element={
-            user ? (
-              <Chat user={user} onLogout={handleLogout} />
             ) : (
               <Navigate to="/login" replace />
             )

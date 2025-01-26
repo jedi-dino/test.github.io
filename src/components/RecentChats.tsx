@@ -1,77 +1,78 @@
 import React, { useState, useEffect } from 'react'
-import { API_URL } from '../config'
+import { API_URL, ENDPOINTS } from '../config'
+import ProfilePicture from './ProfilePicture'
 
-interface RecentChat {
+interface ChatUser {
   id: string
   username: string
+}
+
+interface RecentChat {
+  user: ChatUser
   lastMessage: {
     content: string
-    mediaType: 'image' | 'video' | null
     createdAt: string
-    read: boolean
-    sender: {
-      _id: string
-    }
+    mediaType: 'image' | 'video' | null
   }
+  unreadCount: number
 }
 
 interface RecentChatsProps {
   token: string
   currentUserId: string
-  onSelectUser: (user: { id: string; username: string }) => void
+  onSelectUser: (user: ChatUser) => void
   selectedUserId?: string
 }
 
-const RecentChats: React.FC<RecentChatsProps> = ({ token, currentUserId, onSelectUser, selectedUserId }) => {
-  const [chats, setChats] = useState<RecentChat[]>([])
+const RecentChats: React.FC<RecentChatsProps> = ({
+  token,
+  currentUserId,
+  onSelectUser,
+  selectedUserId
+}): JSX.Element => {
+  const [recentChats, setRecentChats] = useState<RecentChat[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetchRecentChats()
-    // Poll for new chats every 10 seconds
-    const interval = setInterval(fetchRecentChats, 10000)
-    return () => clearInterval(interval)
-  }, [])
+  const [error, setError] = useState('')
 
   const fetchRecentChats = async () => {
     setIsLoading(true)
-    setError(null)
+    setError('')
 
     try {
-      const response = await fetch(
-        `${API_URL}/api/messages/recent/chats`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+      const response = await fetch(`${API_URL}${ENDPOINTS.MESSAGES.RECENT}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      )
+      })
 
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}))
-        throw new Error(data.message || `Error fetching chats: ${response.status}`)
+        throw new Error('Failed to fetch recent chats')
       }
 
       const data = await response.json()
-      setChats(data)
+      setRecentChats(data)
     } catch (error) {
+      setError('Failed to load recent chats')
       console.error('Error fetching recent chats:', error)
-      setError(error instanceof Error ? error.message : 'Error fetching chats')
     } finally {
       setIsLoading(false)
     }
   }
+
+  useEffect(() => {
+    fetchRecentChats()
+    const interval = setInterval(fetchRecentChats, 10000) // Poll every 10 seconds
+    return () => clearInterval(interval)
+  }, [token])
 
   const formatLastMessage = (chat: RecentChat) => {
     if (chat.lastMessage.mediaType === 'image') {
       return '📷 Image'
     } else if (chat.lastMessage.mediaType === 'video') {
       return '🎥 Video'
-    } else {
-      return chat.lastMessage.content || 'No message'
     }
+    return chat.lastMessage.content
   }
 
   const formatTimestamp = (timestamp: string) => {
@@ -80,24 +81,40 @@ const RecentChats: React.FC<RecentChatsProps> = ({ token, currentUserId, onSelec
     const diff = now.getTime() - date.getTime()
     const days = Math.floor(diff / (1000 * 60 * 60 * 24))
 
-    if (days === 0) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    } else if (days === 1) {
-      return 'Yesterday'
-    } else if (days < 7) {
-      return date.toLocaleDateString([], { weekday: 'short' })
-    } else {
-      return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+    if (days > 7) {
+      return date.toLocaleDateString()
+    } else if (days > 0) {
+      return `${days}d ago`
     }
+
+    const hours = Math.floor(diff / (1000 * 60 * 60))
+    if (hours > 0) {
+      return `${hours}h ago`
+    }
+
+    const minutes = Math.floor(diff / (1000 * 60))
+    if (minutes > 0) {
+      return `${minutes}m ago`
+    }
+
+    return 'Just now'
+  }
+
+  if (isLoading && recentChats.length === 0) {
+    return (
+      <div className="flex justify-center items-center h-32">
+        <div className="spinner h-8 w-8"></div>
+      </div>
+    )
   }
 
   if (error) {
     return (
       <div className="p-4 text-center">
-        <p className="text-red-500">{error}</p>
+        <p className="text-red-600 dark:text-red-400">{error}</p>
         <button
           onClick={fetchRecentChats}
-          className="mt-2 text-blue-500 hover:text-blue-600"
+          className="mt-2 text-blue-600 dark:text-blue-400 hover:underline"
         >
           Try again
         </button>
@@ -105,56 +122,58 @@ const RecentChats: React.FC<RecentChatsProps> = ({ token, currentUserId, onSelec
     )
   }
 
-  if (isLoading && chats.length === 0) {
+  if (recentChats.length === 0) {
     return (
-      <div className="flex justify-center items-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-      </div>
-    )
-  }
-
-  if (chats.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-        <p className="text-gray-500 dark:text-gray-400 mb-2">No recent chats</p>
-        <p className="text-gray-400 dark:text-gray-500 text-sm">
-          Start a new chat to begin messaging
-        </p>
+      <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+        No recent chats
       </div>
     )
   }
 
   return (
     <div className="space-y-1">
-      {chats.map(chat => (
+      {recentChats.map((chat) => (
         <button
-          key={chat.id}
-          onClick={() => onSelectUser({ id: chat.id, username: chat.username })}
-          className={`w-full text-left p-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150 ${
-            chat.id === selectedUserId ? 'bg-gray-100 dark:bg-gray-700' : ''
+          key={chat.user.id}
+          onClick={() => onSelectUser(chat.user)}
+          className={`w-full flex items-center p-3 rounded-lg transition-colors ${
+            chat.user.id === selectedUserId
+              ? 'bg-blue-50 dark:bg-blue-900/20'
+              : 'hover:bg-gray-100 dark:hover:bg-gray-700'
           }`}
         >
-          <div className="flex justify-between items-start">
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-gray-900 dark:text-white truncate">
-                {chat.username}
-              </p>
-              <p className={`text-sm truncate ${
-                !chat.lastMessage.read && chat.lastMessage.sender._id !== currentUserId
+          <div className="relative">
+            <ProfilePicture username={chat.user.username} size="md" />
+            {chat.unreadCount > 0 && (
+              <div className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                {chat.unreadCount}
+              </div>
+            )}
+          </div>
+          <div className="ml-3 flex-1 text-left">
+            <div className="flex justify-between items-baseline">
+              <span
+                className={`font-medium ${
+                  chat.unreadCount > 0
+                    ? 'text-gray-900 dark:text-white'
+                    : 'text-gray-700 dark:text-gray-200'
+                }`}
+              >
+                {chat.user.username}
+              </span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {formatTimestamp(chat.lastMessage.createdAt)}
+              </span>
+            </div>
+            <p
+              className={`text-sm truncate ${
+                chat.unreadCount > 0
                   ? 'text-gray-900 dark:text-white font-medium'
                   : 'text-gray-500 dark:text-gray-400'
-              }`}>
-                {formatLastMessage(chat)}
-              </p>
-            </div>
-            <div className="ml-3">
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {formatTimestamp(chat.lastMessage.createdAt)}
-              </p>
-              {!chat.lastMessage.read && chat.lastMessage.sender._id !== currentUserId && (
-                <div className="mt-1 h-2 w-2 bg-blue-500 rounded-full ml-auto"></div>
-              )}
-            </div>
+              }`}
+            >
+              {formatLastMessage(chat)}
+            </p>
           </div>
         </button>
       ))}

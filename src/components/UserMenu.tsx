@@ -1,14 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import ProfilePicture from './ProfilePicture'
 
 interface UserMenuProps {
   user: {
+    id: string
     username: string
+    token: string
   }
   onLogout: () => void
 }
 
-const UserMenu: React.FC<UserMenuProps> = ({ user, onLogout }) => {
+const UserMenu: React.FC<UserMenuProps> = ({ user, onLogout }): JSX.Element => {
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -20,20 +23,21 @@ const UserMenu: React.FC<UserMenuProps> = ({ user, onLogout }) => {
     }
 
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
   }, [])
 
   return (
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150"
+        className="flex items-center space-x-2 focus:outline-none"
       >
-        <span className="font-medium text-gray-900 dark:text-white">
-          {user.username}
-        </span>
+        <ProfilePicture username={user.username} size="sm" />
+        <span className="text-gray-700 dark:text-gray-200">{user.username}</span>
         <svg
-          className={`w-5 h-5 text-gray-500 transition-transform duration-200 ${
+          className={`w-5 h-5 text-gray-400 transition-transform ${
             isOpen ? 'transform rotate-180' : ''
           }`}
           fill="none"
@@ -51,10 +55,16 @@ const UserMenu: React.FC<UserMenuProps> = ({ user, onLogout }) => {
 
       {isOpen && (
         <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5">
-          <div className="py-1">
+          <div
+            className="py-1"
+            role="menu"
+            aria-orientation="vertical"
+            aria-labelledby="user-menu"
+          >
             <Link
               to="/settings"
               className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+              role="menuitem"
               onClick={() => setIsOpen(false)}
             >
               Settings
@@ -65,8 +75,9 @@ const UserMenu: React.FC<UserMenuProps> = ({ user, onLogout }) => {
                 onLogout()
               }}
               className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+              role="menuitem"
             >
-              Logout
+              Sign out
             </button>
           </div>
         </div>
