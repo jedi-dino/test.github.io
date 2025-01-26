@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { STORAGE_KEYS } from './config'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Chat from './pages/Chat'
@@ -9,38 +10,30 @@ interface User {
   id: string
   username: string
   token: string
-  profilePicture?: string
 }
 
-function App() {
+const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(() => {
-    const savedUser = localStorage.getItem('user')
+    const savedUser = localStorage.getItem(STORAGE_KEYS.USER)
     return savedUser ? JSON.parse(savedUser) : null
   })
 
-  const handleLogin = (userData: User) => {
-    // Ensure profilePicture is included in userData
-    const userToSave = {
-      id: userData.id,
-      username: userData.username,
-      token: userData.token,
-      profilePicture: userData.profilePicture || ''
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user))
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.USER)
     }
-    setUser(userToSave)
-    localStorage.setItem('user', JSON.stringify(userToSave))
+  }, [user])
+
+  const handleLogin = (userData: User) => {
+    setUser(userData)
   }
 
   const handleLogout = () => {
     setUser(null)
-    localStorage.removeItem('user')
-  }
-
-  const handleProfileUpdate = (updatedData: Partial<User>) => {
-    if (user) {
-      const newUserData = { ...user, ...updatedData }
-      setUser(newUserData)
-      localStorage.setItem('user', JSON.stringify(newUserData))
-    }
+    localStorage.removeItem(STORAGE_KEYS.USER)
+    localStorage.removeItem(STORAGE_KEYS.SELECTED_CHAT_USER)
   }
 
   return (
@@ -62,7 +55,7 @@ function App() {
             user ? (
               <Navigate to="/" replace />
             ) : (
-              <Register onRegister={handleLogin} />
+              <Register />
             )
           }
         />
@@ -70,7 +63,7 @@ function App() {
           path="/settings"
           element={
             user ? (
-              <Settings user={user} onUpdate={handleProfileUpdate} />
+              <Settings user={user} onLogout={handleLogout} />
             ) : (
               <Navigate to="/login" replace />
             )
@@ -86,7 +79,6 @@ function App() {
             )
           }
         />
-        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   )

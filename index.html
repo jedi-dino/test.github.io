@@ -1,29 +1,24 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/test.github.io/chat.svg" />
+    <link rel="icon" type="image/svg+xml" href="/chat-icon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="A real-time chat application with user search and messaging capabilities" />
-    <meta name="theme-color" content="#1F2937" />
+    <meta name="description" content="A real-time chat application with media sharing capabilities" />
+    <meta name="theme-color" content="#2563eb" />
     <title>Chat App</title>
+    <!-- Tailwind base styles -->
     <script>
-      // Immediately apply dark mode if saved or defaulting to dark
-      (function() {
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'light') {
-          document.documentElement.classList.remove('dark');
-        }
-      })();
+      // Check for dark mode preference
+      if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
     </script>
   </head>
-  <body>
+  <body class="bg-gray-50 dark:bg-gray-900">
     <div id="root"></div>
-    <script type="module" src="./src/main.tsx"></script>
-    <noscript>
-      <div style="text-align: center; padding: 20px;">
-        Please enable JavaScript to use this application.
-      </div>
-    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

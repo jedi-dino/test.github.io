@@ -1,147 +1,109 @@
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import Logo from '../components/Logo'
-import ThemeToggle from '../components/ThemeToggle'
-import { API_URL, ENDPOINTS, checkApiHealth, fetchWithRetry } from '../config'
+import React, { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { API_URL, ENDPOINTS, VALIDATION, ERROR_MESSAGES } from '../config'
 
-interface RegisterProps {
-  onRegister: (userData: { id: string; username: string; token: string; profilePicture?: string }) => void
+interface RegisterFormData {
+  username: string
+  password: string
+  confirmPassword: string
 }
 
-function Register({ onRegister }: RegisterProps) {
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [error, setError] = useState('')
+const Register: React.FC = () => {
+  const navigate = useNavigate()
+  const [formData, setFormData] = useState<RegisterFormData>({
+    username: '',
+    password: '',
+    confirmPassword: ''
+  })
+  const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [isApiAvailable, setIsApiAvailable] = useState(true)
 
-  useEffect(() => {
-    const checkApi = async () => {
-      const isAvailable = await checkApiHealth();
-      setIsApiAvailable(isAvailable);
-      if (!isAvailable) {
-        setError('Unable to connect to server. Please try again later.');
-      }
-    };
-    checkApi();
-  }, []);
-
-  const validateForm = () => {
-    if (!username.trim()) {
-      setError('Username is required');
-      return false;
+  const validateForm = (): boolean => {
+    if (!formData.username) {
+      setError(ERROR_MESSAGES.VALIDATION.USERNAME_REQUIRED)
+      return false
     }
 
-    if (!/^[a-zA-Z0-9_]{3,30}$/.test(username)) {
-      setError('Username must be 3-30 characters long and can only contain letters, numbers, and underscores');
-      return false;
+    if (formData.username.length < VALIDATION.USERNAME.MIN_LENGTH || 
+        formData.username.length > VALIDATION.USERNAME.MAX_LENGTH) {
+      setError(ERROR_MESSAGES.VALIDATION.USERNAME_LENGTH)
+      return false
     }
 
-    if (!password) {
-      setError('Password is required');
-      return false;
+    if (!VALIDATION.USERNAME.PATTERN.test(formData.username)) {
+      setError(ERROR_MESSAGES.VALIDATION.USERNAME_PATTERN)
+      return false
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long');
-      return false;
+    if (!formData.password) {
+      setError(ERROR_MESSAGES.VALIDATION.PASSWORD_REQUIRED)
+      return false
     }
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return false;
+    if (formData.password.length < VALIDATION.PASSWORD.MIN_LENGTH || 
+        formData.password.length > VALIDATION.PASSWORD.MAX_LENGTH) {
+      setError(ERROR_MESSAGES.VALIDATION.PASSWORD_LENGTH)
+      return false
     }
 
-    return true;
-  };
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match')
+      return false
+    }
+
+    return true
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
+    setError(null)
 
-    if (!isApiAvailable) {
-      setError('Server is currently unavailable. Please try again later.');
-      return;
-    }
+    if (!validateForm()) return
 
-    if (!validateForm()) {
-      return;
-    }
-
-    setIsLoading(true);
-
+    setIsLoading(true)
     try {
-      console.log('Making registration request to:', `${API_URL}${ENDPOINTS.register}`)
-      
-      const response = await fetchWithRetry(`${API_URL}${ENDPOINTS.register}`, {
+      const response = await fetch(`${API_URL}${ENDPOINTS.AUTH.REGISTER}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Origin': window.location.origin
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ username: username.trim(), password })
-      });
+        body: JSON.stringify({
+          username: formData.username,
+          password: formData.password
+        })
+      })
 
-      console.log('Response status:', response.status)
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()))
-
-      let data
-      const contentType = response.headers.get('content-type')
-      
-      try {
-        if (contentType && contentType.includes('application/json')) {
-          data = await response.json()
-          console.log('Response data:', data)
-        } else {
-          const text = await response.text()
-          console.log('Raw response:', text)
-          throw new Error('Server returned non-JSON response')
-        }
-      } catch (parseError) {
-        console.error('Error parsing response:', parseError)
-        throw new Error('Failed to parse server response')
-      }
+      const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data?.message || `Registration failed with status ${response.status}`)
+        throw new Error(data.message || 'Registration failed')
       }
 
-      if (!data.id || !data.username || !data.token) {
-        console.error('Invalid response format:', data)
-        throw new Error('Server returned invalid data format')
-      }
-
-      onRegister({
-        id: data.id,
-        username: data.username,
-        token: data.token,
-        profilePicture: data.profilePicture
-      })
-    } catch (err) {
-      console.error('Registration error:', err)
-      if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
-        setError('Unable to connect to server. Please check your internet connection and try again.')
-      } else if (err instanceof Error && err.message.includes('timeout')) {
-        setError('Request timed out. Please try again.')
-      } else {
-        setError(err instanceof Error ? err.message : 'Registration failed')
-      }
+      // Registration successful, redirect to login
+      navigate('/login', { state: { message: 'Registration successful! Please log in.' } })
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Registration failed')
     } finally {
       setIsLoading(false)
     }
   }
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <div className="absolute top-4 right-4">
-            <ThemeToggle />
-          </div>
-          <Logo />
-          <p className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
+            Create your account
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
             Or{' '}
             <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300">
               sign in to your account
@@ -151,7 +113,9 @@ function Register({ onRegister }: RegisterProps) {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
             <div className="rounded-md bg-red-50 dark:bg-red-900/50 p-4">
-              <div className="text-sm text-red-700 dark:text-red-200">{error}</div>
+              <div className="text-sm text-red-700 dark:text-red-200">
+                {error}
+              </div>
             </div>
           )}
           <div className="rounded-md shadow-sm -space-y-px">
@@ -164,16 +128,10 @@ function Register({ onRegister }: RegisterProps) {
                 name="username"
                 type="text"
                 required
-                className="input rounded-t-md dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:placeholder-gray-400"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 focus:z-10 sm:text-sm dark:bg-gray-800"
                 placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoComplete="username"
-                disabled={isLoading || !isApiAvailable}
-                minLength={3}
-                maxLength={30}
-                pattern="^[a-zA-Z0-9_]{3,30}$"
-                title="Username must be 3-30 characters long and can only contain letters, numbers, and underscores"
+                value={formData.username}
+                onChange={handleChange}
               />
             </div>
             <div>
@@ -185,42 +143,43 @@ function Register({ onRegister }: RegisterProps) {
                 name="password"
                 type="password"
                 required
-                className="input dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:placeholder-gray-400"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 focus:z-10 sm:text-sm dark:bg-gray-800"
                 placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="new-password"
-                disabled={isLoading || !isApiAvailable}
-                minLength={6}
+                value={formData.password}
+                onChange={handleChange}
               />
             </div>
             <div>
-              <label htmlFor="confirm-password" className="sr-only">
+              <label htmlFor="confirmPassword" className="sr-only">
                 Confirm Password
               </label>
               <input
-                id="confirm-password"
-                name="confirm-password"
+                id="confirmPassword"
+                name="confirmPassword"
                 type="password"
                 required
-                className="input rounded-b-md dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:placeholder-gray-400"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 focus:z-10 sm:text-sm dark:bg-gray-800"
                 placeholder="Confirm Password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                autoComplete="new-password"
-                disabled={isLoading || !isApiAvailable}
-                minLength={6}
+                value={formData.confirmPassword}
+                onChange={handleChange}
               />
             </div>
           </div>
 
           <div>
-            <button 
-              type="submit" 
-              className="btn btn-primary w-full dark:hover:bg-blue-700"
-              disabled={isLoading || !isApiAvailable}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? 'Creating Account...' : 'Create Account'}
+              {isLoading ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <span className="ml-2">Registering...</span>
+                </div>
+              ) : (
+                'Register'
+              )}
             </button>
           </div>
         </form>

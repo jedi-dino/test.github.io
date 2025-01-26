@@ -1,225 +1,206 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import ThemeToggle from '../components/ThemeToggle'
-import ProfilePicture from '../components/ProfilePicture'
-import { API_URL } from '../config'
+import React, { useState } from 'react'
+import { API_URL, ENDPOINTS, VALIDATION, ERROR_MESSAGES } from '../config'
 
 interface SettingsProps {
   user: {
     id: string
     username: string
     token: string
-    profilePicture?: string
   }
-  onUpdate: (updatedData: Partial<{
-    id: string
-    username: string
-    token: string
-    profilePicture?: string
-  }>) => void
+  onLogout: () => void
 }
 
-function Settings({ user, onUpdate }: SettingsProps) {
-  const [newUsername, setNewUsername] = useState(user.username)
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
-  const [profilePicture, setProfilePicture] = useState(user.profilePicture)
-  const navigate = useNavigate()
+interface PasswordChangeData {
+  currentPassword: string
+  newPassword: string
+  confirmNewPassword: string
+}
 
-  const handleUpdateUsername = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setSuccess('')
+const Settings: React.FC<SettingsProps> = ({ user, onLogout }) => {
+  const [passwordData, setPasswordData] = useState<PasswordChangeData>({
+    currentPassword: '',
+    newPassword: '',
+    confirmNewPassword: ''
+  })
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
 
-    try {
-      const response = await fetch(`${API_URL}/api/users/me`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${user.token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username: newUsername })
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.message || 'Failed to update username')
-      }
-
-      const data = await response.json()
-      setSuccess('Username updated successfully')
-      onUpdate({ username: data.username })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update username')
+  const validatePasswordChange = (): boolean => {
+    if (!passwordData.currentPassword) {
+      setError('Current password is required')
+      return false
     }
+
+    if (!passwordData.newPassword) {
+      setError(ERROR_MESSAGES.VALIDATION.PASSWORD_REQUIRED)
+      return false
+    }
+
+    if (passwordData.newPassword.length < VALIDATION.PASSWORD.MIN_LENGTH || 
+        passwordData.newPassword.length > VALIDATION.PASSWORD.MAX_LENGTH) {
+      setError(ERROR_MESSAGES.VALIDATION.PASSWORD_LENGTH)
+      return false
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmNewPassword) {
+      setError('New passwords do not match')
+      return false
+    }
+
+    return true
   }
 
-  const handleUpdatePassword = async (e: React.FormEvent) => {
+  const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
-    setSuccess('')
+    setError(null)
+    setSuccess(null)
 
-    if (newPassword !== confirmPassword) {
-      setError('New passwords do not match')
-      return
-    }
+    if (!validatePasswordChange()) return
 
+    setIsLoading(true)
     try {
-      const response = await fetch(`${API_URL}/api/users/me`, {
-        method: 'PATCH',
+      const response = await fetch(`${API_URL}${ENDPOINTS.USERS.UPDATE}`, {
+        method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${user.token}`,
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.token}`
         },
         body: JSON.stringify({
-          currentPassword,
-          newPassword
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword
         })
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        const data = await response.json()
         throw new Error(data.message || 'Failed to update password')
       }
 
       setSuccess('Password updated successfully')
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update password')
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmNewPassword: ''
+      })
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to update password')
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const handleProfilePictureUpdate = (newPicture: string) => {
-    setProfilePicture(newPicture)
-    setSuccess('Profile picture updated successfully')
-    onUpdate({ profilePicture: newPicture })
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setPasswordData(prev => ({
+      ...prev,
+      [name]: value
+    }))
   }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Settings</h1>
-            <button
-              onClick={() => navigate(-1)}
-              className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-            >
-              ← Back
-            </button>
-          </div>
+          <div className="max-w-md mx-auto">
+            <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h2>
+                <button
+                  onClick={onLogout}
+                  className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                >
+                  Logout
+                </button>
+              </div>
 
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg divide-y divide-gray-200 dark:divide-gray-700">
-            {/* Theme Settings */}
-            <div className="p-6">
-              <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Theme</h2>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-700 dark:text-gray-300">Dark Mode</span>
-                <ThemeToggle />
+              <div className="mb-6">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Account Information</h3>
+                <p className="text-gray-600 dark:text-gray-400">
+                  Username: <span className="font-medium">{user.username}</span>
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Change Password</h3>
+                <form onSubmit={handlePasswordChange} className="space-y-4">
+                  {error && (
+                    <div className="rounded-md bg-red-50 dark:bg-red-900/50 p-4">
+                      <div className="text-sm text-red-700 dark:text-red-200">
+                        {error}
+                      </div>
+                    </div>
+                  )}
+                  {success && (
+                    <div className="rounded-md bg-green-50 dark:bg-green-900/50 p-4">
+                      <div className="text-sm text-green-700 dark:text-green-200">
+                        {success}
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Current Password
+                    </label>
+                    <input
+                      type="password"
+                      id="currentPassword"
+                      name="currentPassword"
+                      value={passwordData.currentPassword}
+                      onChange={handleInputChange}
+                      required
+                      className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 sm:text-sm dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      New Password
+                    </label>
+                    <input
+                      type="password"
+                      id="newPassword"
+                      name="newPassword"
+                      value={passwordData.newPassword}
+                      onChange={handleInputChange}
+                      required
+                      className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 sm:text-sm dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="confirmNewPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Confirm New Password
+                    </label>
+                    <input
+                      type="password"
+                      id="confirmNewPassword"
+                      name="confirmNewPassword"
+                      value={passwordData.confirmNewPassword}
+                      onChange={handleInputChange}
+                      required
+                      className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 sm:text-sm dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isLoading ? (
+                        <div className="flex items-center">
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                          <span className="ml-2">Updating...</span>
+                        </div>
+                      ) : (
+                        'Update Password'
+                      )}
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
-
-            {/* Profile Picture */}
-            <div className="p-6">
-              <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Profile Picture</h2>
-              <ProfilePicture
-                currentPicture={profilePicture}
-                token={user.token}
-                onUpdate={handleProfilePictureUpdate}
-              />
-            </div>
-
-            {/* Profile Settings */}
-            <div className="p-6">
-              <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Profile</h2>
-              <form onSubmit={handleUpdateUsername} className="space-y-4">
-                <div>
-                  <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Username
-                  </label>
-                  <input
-                    type="text"
-                    id="username"
-                    value={newUsername}
-                    onChange={(e) => setNewUsername(e.target.value)}
-                    className="mt-1 input dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                >
-                  Update Username
-                </button>
-              </form>
-            </div>
-
-            {/* Password Settings */}
-            <div className="p-6">
-              <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Password</h2>
-              <form onSubmit={handleUpdatePassword} className="space-y-4">
-                <div>
-                  <label htmlFor="current-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Current Password
-                  </label>
-                  <input
-                    type="password"
-                    id="current-password"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="mt-1 input dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    New Password
-                  </label>
-                  <input
-                    type="password"
-                    id="new-password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="mt-1 input dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Confirm New Password
-                  </label>
-                  <input
-                    type="password"
-                    id="confirm-password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="mt-1 input dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                >
-                  Update Password
-                </button>
-              </form>
-            </div>
           </div>
-
-          {error && (
-            <div className="mt-4 rounded-md bg-red-50 dark:bg-red-900/50 p-4">
-              <div className="text-sm text-red-700 dark:text-red-200">{error}</div>
-            </div>
-          )}
-
-          {success && (
-            <div className="mt-4 rounded-md bg-green-50 dark:bg-green-900/50 p-4">
-              <div className="text-sm text-green-700 dark:text-green-200">{success}</div>
-            </div>
-          )}
         </div>
       </div>
     </div>

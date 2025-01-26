@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import UserSearch from '../components/UserSearch'
 import UserMenu from '../components/UserMenu'
 import RecentChats from '../components/RecentChats'
 import VideoPlayer from '../components/VideoPlayer'
-import { API_URL } from '../config'
+import { API_URL, ENDPOINTS, VALIDATION, ERROR_MESSAGES } from '../config'
 
 interface Message {
   _id: string
@@ -36,17 +36,18 @@ interface ChatProps {
   onLogout: () => void
 }
 
-function Chat({ user, onLogout }: ChatProps) {
+const Chat: React.FC<ChatProps> = ({ user, onLogout }) => {
   const [selectedUser, setSelectedUser] = useState<ChatUser | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [selectedMedia, setSelectedMedia] = useState<File | null>(null)
-  const [mediaPreview, setMediaPreview] = useState<string | null>(null)
+  const [mediaPreview, setMediaPreview] = useState<string | undefined>(undefined)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isLoading, setIsLoading] = useState(false)
   const pollInterval = useRef<number | null>(null)
+  const isInitialLoad = useRef(true)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -56,9 +57,31 @@ function Chat({ user, onLogout }: ChatProps) {
     scrollToBottom()
   }, [messages])
 
+  // Load last selected user from localStorage
+  useEffect(() => {
+    const savedUser = localStorage.getItem('selectedChatUser')
+    if (savedUser) {
+      try {
+        const parsedUser = JSON.parse(savedUser)
+        setSelectedUser(parsedUser)
+        isInitialLoad.current = true // Set initial load flag
+      } catch (error) {
+        console.error('Error parsing saved user:', error)
+      }
+    }
+  }, [])
+
   useEffect(() => {
     if (selectedUser) {
-      fetchMessages()
+      // Save selected user to localStorage
+      localStorage.setItem('selectedChatUser', JSON.stringify(selectedUser))
+      
+      // Only fetch messages if this is the initial load or user selection
+      if (isInitialLoad.current) {
+        fetchMessages()
+        isInitialLoad.current = false
+      }
+
       // Start polling for new messages
       pollInterval.current = window.setInterval(fetchMessages, 5000)
     }
@@ -76,7 +99,7 @@ function Chat({ user, onLogout }: ChatProps) {
     setIsLoading(true)
     try {
       const response = await fetch(
-        `${API_URL}/api/messages/${selectedUser.id}`,
+        `${API_URL}${ENDPOINTS.MESSAGES.GET}/${selectedUser.id}`,
         {
           headers: {
             'Authorization': `Bearer ${user.token}`,
@@ -134,7 +157,7 @@ function Chat({ user, onLogout }: ChatProps) {
 
   const clearMedia = () => {
     setSelectedMedia(null)
-    setMediaPreview(null)
+    setMediaPreview(undefined)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -154,7 +177,7 @@ function Chat({ user, onLogout }: ChatProps) {
         })
       }
 
-      const response = await fetch(`${API_URL}/api/messages`, {
+      const response = await fetch(`${API_URL}${ENDPOINTS.MESSAGES.SEND}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${user.token}`,
@@ -170,7 +193,7 @@ function Chat({ user, onLogout }: ChatProps) {
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
-        throw new Error(data.message || `Failed to send message: ${response.status}`)
+        throw new Error(data.message || 'Failed to send message')
       }
 
       const contentType = response.headers.get('content-type')
@@ -192,6 +215,7 @@ function Chat({ user, onLogout }: ChatProps) {
     setSelectedUser(chatUser)
     setMessages([])
     setIsSearching(false)
+    isInitialLoad.current = true // Reset initial load flag for new user selection
   }
 
   const renderMessageContent = (message: Message) => {
@@ -205,9 +229,9 @@ function Chat({ user, onLogout }: ChatProps) {
                 src={message.mediaUrl} 
                 alt="Message attachment" 
                 className="max-w-xs rounded-lg cursor-pointer"
-                onClick={() => window.open(message.mediaUrl, '_blank')}
+                onClick={() => message.mediaUrl && window.open(message.mediaUrl, '_blank')}
               />
-            ) : message.mediaType === 'video' && message.mediaUrl ? (
+            ) : message.mediaType === 'video' ? (
               <VideoPlayer 
                 src={message.mediaUrl}
                 className="max-w-xs rounded-lg"
@@ -225,17 +249,17 @@ function Chat({ user, onLogout }: ChatProps) {
   }
 
   const renderMediaPreview = () => {
-    if (!mediaPreview) return null
+    if (!mediaPreview || !selectedMedia) return null
 
     return (
       <div className="mb-4 relative inline-block">
-        {selectedMedia?.type.startsWith('image/') ? (
+        {selectedMedia.type.startsWith('image/') ? (
           <img 
-            src={mediaPreview} 
+            src={mediaPreview}
             alt="Upload preview" 
             className="max-h-32 rounded-lg"
           />
-        ) : selectedMedia?.type.startsWith('video/') && mediaPreview ? (
+        ) : selectedMedia.type.startsWith('video/') ? (
           <VideoPlayer 
             src={mediaPreview}
             className="max-h-32 rounded-lg"

@@ -1,33 +1,41 @@
+import React, { useRef, useEffect } from 'react'
+
 interface VideoPlayerProps {
   src: string | null | undefined
   className?: string
-  controls?: boolean
 }
 
-function VideoPlayer({ src, className = '', controls = true }: VideoPlayerProps) {
-  // Early return if no source
-  if (!src) return null;
+const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, className = '' }) => {
+  const videoRef = useRef<HTMLVideoElement>(null)
 
-  // Create a URL object from the source
-  let videoUrl: string;
-  try {
-    const url = new URL(src);
-    videoUrl = url.toString();
-  } catch {
-    // If not a valid URL, use the string directly (e.g., for data URLs)
-    videoUrl = src;
+  useEffect(() => {
+    // Reset video when source changes
+    if (videoRef.current) {
+      videoRef.current.load()
+    }
+  }, [src])
+
+  if (!src) return null
+
+  const handleError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    console.error('Error loading video:', e)
   }
 
   return (
-    <video 
-      className={className}
-      controls={controls}
-      autoPlay={false}
-      src={videoUrl}
-    >
-      Your browser does not support the video tag.
-    </video>
-  );
+    <div className={`relative ${className}`}>
+      <video
+        ref={videoRef}
+        controls
+        preload="metadata"
+        className="w-full rounded-lg"
+        onError={handleError}
+      >
+        <source src={src} type="video/mp4" />
+        <source src={src} type="video/webm" />
+        Your browser does not support the video tag.
+      </video>
+    </div>
+  )
 }
 
-export default VideoPlayer;
+export default VideoPlayer
