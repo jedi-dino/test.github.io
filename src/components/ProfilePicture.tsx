@@ -38,13 +38,13 @@ function ProfilePicture({ currentPicture, token, onUpdate }: ProfilePictureProps
         const base64Image = event.target?.result as string;
 
         try {
-          const response = await fetch(`${API_URL}/api/users/me/profile-picture`, {
-            method: 'POST',
+          const response = await fetch(`${API_URL}/api/users/me`, {
+            method: 'PATCH',
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ image: base64Image })
+            body: JSON.stringify({ profilePicture: base64Image })
           });
 
           if (!response.ok) {
