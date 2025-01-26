@@ -11,8 +11,8 @@ router.get('/recent', auth, async (req, res) => {
       {
         $match: {
           $or: [
-            { senderId: req.user._id },
-            { recipientId: req.user._id }
+            { sender: req.user._id },
+            { recipient: req.user._id }
           ]
         }
       },
@@ -23,9 +23,9 @@ router.get('/recent', auth, async (req, res) => {
         $group: {
           _id: {
             $cond: [
-              { $eq: ['$senderId', req.user._id] },
-              '$recipientId',
-              '$senderId'
+              { $eq: ['$sender', req.user._id] },
+              '$recipient',
+              '$sender'
             ]
           },
           lastMessage: { $first: '$$ROOT' },
@@ -34,7 +34,7 @@ router.get('/recent', auth, async (req, res) => {
               $cond: [
                 {
                   $and: [
-                    { $eq: ['$recipientId', req.user._id] },
+                    { $eq: ['$recipient', req.user._id] },
                     { $eq: ['$read', false] }
                   ]
                 },
@@ -85,8 +85,8 @@ router.get('/:userId', auth, async (req, res) => {
   try {
     const messages = await Message.find({
       $or: [
-        { senderId: req.user._id, recipientId: req.params.userId },
-        { senderId: req.params.userId, recipientId: req.user._id }
+        { sender: req.user._id, recipient: req.params.userId },
+        { sender: req.params.userId, recipient: req.user._id }
       ]
     })
     .sort({ createdAt: -1 })
@@ -95,8 +95,8 @@ router.get('/:userId', auth, async (req, res) => {
     // Mark messages as read
     await Message.updateMany(
       {
-        senderId: req.params.userId,
-        recipientId: req.user._id,
+        sender: req.params.userId,
+        recipient: req.user._id,
         read: false
       },
       { read: true }
@@ -119,8 +119,8 @@ router.post('/', auth, async (req, res) => {
     }
 
     const message = new Message({
-      senderId: req.user._id,
-      recipientId,
+      sender: req.user._id,
+      recipient: recipientId,
       content: content.trim(),
       read: false
     });
@@ -136,12 +136,16 @@ router.post('/', auth, async (req, res) => {
 // Delete conversation with a user
 router.delete('/:userId', auth, async (req, res) => {
   try {
-    await Message.deleteMany({
+    const result = await Message.deleteMany({
       $or: [
-        { senderId: req.user._id, recipientId: req.params.userId },
-        { senderId: req.params.userId, recipientId: req.user._id }
+        { sender: req.user._id, recipient: req.params.userId },
+        { sender: req.params.userId, recipient: req.user._id }
       ]
     });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ message: 'No messages found to delete' });
+    }
 
     res.json({ message: 'Conversation deleted successfully' });
   } catch (error) {
