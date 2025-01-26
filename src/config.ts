@@ -1,7 +1,5 @@
-// API URL from environment variable
 export const API_URL = import.meta.env.VITE_API_URL
 
-// API Endpoints
 export const ENDPOINTS = {
   AUTH: {
     LOGIN: '/api/auth/login',
@@ -21,20 +19,15 @@ export const ENDPOINTS = {
   }
 }
 
-// File upload limits
-export const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB in bytes
+export const MAX_FILE_SIZE = 10 * 1024 * 1024
 export const ALLOWED_FILE_TYPES = {
   image: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
   video: ['video/mp4', 'video/webm']
 }
 
-// Message polling interval (in milliseconds)
 export const MESSAGE_POLL_INTERVAL = 5000
-
-// Recent chats polling interval (in milliseconds)
 export const RECENT_CHATS_POLL_INTERVAL = 10000
 
-// Local storage keys
 export const STORAGE_KEYS = {
   AUTH_TOKEN: 'authToken',
   USER: 'user',
@@ -42,16 +35,13 @@ export const STORAGE_KEYS = {
   THEME: 'theme'
 }
 
-// Theme settings
 export const THEMES = {
   LIGHT: 'light',
   DARK: 'dark'
 } as const
 
-// Default theme
 export const DEFAULT_THEME = THEMES.LIGHT
 
-// Validation rules
 export const VALIDATION = {
   USERNAME: {
     MIN_LENGTH: 3,
@@ -67,7 +57,6 @@ export const VALIDATION = {
   }
 }
 
-// Error messages
 export const ERROR_MESSAGES = {
   NETWORK_ERROR: 'Network error. Please check your connection and try again.',
   SERVER_ERROR: 'Server error. Please try again later.',
@@ -84,7 +73,6 @@ export const ERROR_MESSAGES = {
   }
 }
 
-// API utilities
 export const checkApiHealth = async (): Promise<boolean> => {
   try {
     const response = await fetch(`${API_URL}/health`)

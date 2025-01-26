@@ -7,7 +7,6 @@ interface ProfilePictureProps {
 }
 
 const ProfilePicture: React.FC<ProfilePictureProps> = ({ username, size = 'md', className = '' }) => {
-  // Generate a color based on username
   const getColor = (str: string) => {
     let hash = 0
     for (let i = 0; i < str.length; i++) {
@@ -17,12 +16,10 @@ const ProfilePicture: React.FC<ProfilePictureProps> = ({ username, size = 'md', 
     return `hsl(${hue}, 70%, 50%)`
   }
 
-  // Get initials from username
   const getInitials = (username: string) => {
     return username.slice(0, 2).toUpperCase()
   }
 
-  // Size classes
   const sizeClasses = {
     sm: 'w-8 h-8 text-sm',
     md: 'w-10 h-10 text-base',

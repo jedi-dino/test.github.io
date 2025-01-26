@@ -62,7 +62,7 @@ const RecentChats: React.FC<RecentChatsProps> = ({
 
   useEffect(() => {
     fetchRecentChats()
-    const interval = setInterval(fetchRecentChats, 10000) // Poll every 10 seconds
+    const interval = setInterval(fetchRecentChats, 10000)
     return () => clearInterval(interval)
   }, [token])
 

@@ -1,4 +1,3 @@
-/** @type {import('tailwindcss').Config} */
 export default {
   content: [
     "./index.html",
@@ -7,12 +6,6 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
-      colors: {
-        // Add any custom colors here if needed
-      },
-      spacing: {
-        // Add any custom spacing values here if needed
-      },
       maxHeight: {
         '128': '32rem',
       },
