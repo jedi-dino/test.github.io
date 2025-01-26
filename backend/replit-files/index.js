@@ -17,6 +17,7 @@ const corsOptions = {
   origin: [
     'http://localhost:3005',
     'http://localhost:5173',
+    'http://localhost:3005/chat-app',
     'https://testserverprobsfail.replit.app',
     'https://chat-app.samue.repl.co',
     'https://iwbms.github.io',
@@ -30,7 +31,25 @@ const corsOptions = {
   optionsSuccessStatus: 204
 };
 
-// Enable CORS for all routes
+// Middleware
+app.use(cors(corsOptions));
+app.use(express.json());
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  console.log('Request headers:', req.headers);
+  console.log('Request body:', req.body);
+  
+  // Log CORS-related information
+  console.log('Origin:', req.headers.origin);
+  console.log('Access-Control-Request-Method:', req.headers['access-control-request-method']);
+  console.log('Access-Control-Request-Headers:', req.headers['access-control-request-headers']);
+  
+  next();
+});
+
+// Add response headers middleware
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (corsOptions.origin.includes(origin)) {
@@ -53,24 +72,6 @@ app.options('*', (req, res) => {
     console.log('Blocked CORS request from:', origin);
     res.status(403).send();
   }
-});
-
-// Middleware
-app.use(cors(corsOptions));
-app.use(express.json());
-
-// Request logging middleware
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-  console.log('Request headers:', req.headers);
-  console.log('Request body:', req.body);
-  
-  // Log CORS-related information
-  console.log('Origin:', req.headers.origin);
-  console.log('Access-Control-Request-Method:', req.headers['access-control-request-method']);
-  console.log('Access-Control-Request-Headers:', req.headers['access-control-request-headers']);
-  
-  next();
 });
 
 // Apply rate limiting

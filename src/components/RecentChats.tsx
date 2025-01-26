@@ -2,16 +2,14 @@ import { useState, useEffect } from 'react'
 import { API_URL } from '../config'
 
 interface Message {
-  id: string
+  _id: string
   content: string
-  timestamp: string
-  senderId: string
-  receiverId: string
+  createdAt: string
   read: boolean
 }
 
 interface ChatUser {
-  id: string
+  _id: string
   username: string
 }
 
@@ -24,7 +22,7 @@ interface Conversation {
 interface RecentChatsProps {
   token: string
   currentUserId: string
-  onSelectUser: (user: ChatUser) => void
+  onSelectUser: (user: { id: string; username: string }) => void
   selectedUserId?: string
 }
 
@@ -61,6 +59,7 @@ function RecentChats({ token, currentUserId, onSelectUser, selectedUserId }: Rec
       }
 
       const data = await response.json()
+      console.log('Recent conversations response:', data);
       setConversations(Array.isArray(data) ? data : [])
       setError(null)
     } catch (error) {
@@ -118,10 +117,13 @@ function RecentChats({ token, currentUserId, onSelectUser, selectedUserId }: Rec
       ) : (
         conversations.map((conversation) => (
           <button
-            key={conversation.user.id}
-            onClick={() => onSelectUser(conversation.user)}
+            key={conversation.user._id}
+            onClick={() => onSelectUser({
+              id: conversation.user._id,
+              username: conversation.user.username
+            })}
             className={`w-full px-4 py-3 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
-              selectedUserId === conversation.user.id ? 'bg-gray-100 dark:bg-gray-700' : ''
+              selectedUserId === conversation.user._id ? 'bg-gray-100 dark:bg-gray-700' : ''
             }`}
           >
             <div className="flex items-center space-x-3">
@@ -134,12 +136,11 @@ function RecentChats({ token, currentUserId, onSelectUser, selectedUserId }: Rec
                     {conversation.user.username}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-                    {formatTimestamp(conversation.lastMessage.timestamp)}
+                    {formatTimestamp(conversation.lastMessage.createdAt)}
                   </p>
                 </div>
                 <div className="flex items-center">
                   <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                    {conversation.lastMessage.senderId === currentUserId ? 'You: ' : ''}
                     {conversation.lastMessage.content}
                   </p>
                   {conversation.unreadCount > 0 && (

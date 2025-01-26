@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react'
 import { API_URL } from '../config'
 
 interface User {
-  id: string
+  _id: string
   username: string
 }
 
 interface UserSearchProps {
-  onSelectUser: (user: User) => void
+  onSelectUser: (user: { id: string; username: string }) => void
   currentUserId: string
   token: string
 }
@@ -40,7 +40,8 @@ function UserSearch({ onSelectUser, currentUserId, token }: UserSearchProps) {
         }
 
         const users = await response.json()
-        setSearchResults(users.filter((user: User) => user.id !== currentUserId))
+        console.log('Initial users:', users);
+        setSearchResults(users.filter((user: User) => user._id !== currentUserId))
         setError(null)
       } catch (error) {
         console.error('Error fetching users:', error)
@@ -74,7 +75,8 @@ function UserSearch({ onSelectUser, currentUserId, token }: UserSearchProps) {
         }
 
         const users = await response.json()
-        setSearchResults(users.filter((user: User) => user.id !== currentUserId))
+        console.log('Search results (empty term):', users);
+        setSearchResults(users.filter((user: User) => user._id !== currentUserId))
       } catch (error) {
         console.error('Error fetching users:', error)
         setError(error instanceof Error ? error.message : 'Failed to fetch users')
@@ -107,7 +109,8 @@ function UserSearch({ onSelectUser, currentUserId, token }: UserSearchProps) {
       }
 
       const users = await response.json()
-      setSearchResults(users.filter((user: User) => user.id !== currentUserId))
+      console.log('Search results:', users);
+      setSearchResults(users.filter((user: User) => user._id !== currentUserId))
       setError(null)
     } catch (error) {
       console.error('Search error:', error)
@@ -147,9 +150,12 @@ function UserSearch({ onSelectUser, currentUserId, token }: UserSearchProps) {
         ) : (
           searchResults.map((user) => (
             <button
-              key={user.id}
+              key={user._id}
               className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white focus:outline-none focus:bg-gray-100 dark:focus:bg-gray-700"
-              onClick={() => onSelectUser(user)}
+              onClick={() => onSelectUser({
+                id: user._id,
+                username: user.username
+              })}
             >
               {user.username}
             </button>

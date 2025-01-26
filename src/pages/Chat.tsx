@@ -5,11 +5,17 @@ import RecentChats from '../components/RecentChats'
 import { API_URL } from '../config'
 
 interface Message {
-  id: string
-  senderId: string
-  receiverId: string
+  _id: string
+  sender: {
+    _id: string
+    username: string
+  }
+  recipient: {
+    _id: string
+    username: string
+  }
   content: string
-  timestamp: string
+  createdAt: string
   read: boolean
 }
 
@@ -85,6 +91,7 @@ function Chat({ user, onLogout }: ChatProps) {
       }
 
       const data = await response.json()
+      console.log('Fetched messages:', data)
       setMessages(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Error fetching messages:', error)
@@ -122,6 +129,7 @@ function Chat({ user, onLogout }: ChatProps) {
       }
 
       const data = await response.json()
+      console.log('Sent message response:', data)
       setMessages((prev) => [...prev, data])
       setNewMessage('')
     } catch (error) {
@@ -194,23 +202,23 @@ function Chat({ user, onLogout }: ChatProps) {
               ) : (
                 messages.map((message) => (
                   <div
-                    key={message.id}
+                    key={message._id}
                     className={`mb-4 flex ${
-                      message.senderId === user.id ? 'justify-end' : 'justify-start'
+                      message.sender._id === user.id ? 'justify-end' : 'justify-start'
                     }`}
                   >
                     <div
                       className={`max-w-xs md:max-w-md px-4 py-2 rounded-lg ${
-                        message.senderId === user.id
+                        message.sender._id === user.id
                           ? 'bg-blue-600 text-white'
                           : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'
                       }`}
                     >
                       <p>{message.content}</p>
                       <p className={`text-xs mt-1 ${
-                        message.senderId === user.id ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
+                        message.sender._id === user.id ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
                       }`}>
-                        {new Date(message.timestamp).toLocaleTimeString()}
+                        {new Date(message.createdAt).toLocaleTimeString()}
                       </p>
                     </div>
                   </div>

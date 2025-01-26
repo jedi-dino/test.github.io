@@ -17,6 +17,7 @@ const corsOptions = {
   origin: [
     'http://localhost:3005',
     'http://localhost:5173',
+    'http://localhost:3005/chat-app',
     'https://testserverprobsfail.replit.app',
     'https://chat-app.samue.repl.co',
     'https://iwbms.github.io',
@@ -53,9 +54,9 @@ app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (corsOptions.origin.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Origin');
   }
-  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Origin');
   next();
 });
 

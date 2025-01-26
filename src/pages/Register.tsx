@@ -27,22 +27,49 @@ function Register({ onRegister }: RegisterProps) {
     checkApi();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setIsLoading(true)
+  const validateForm = () => {
+    if (!username.trim()) {
+      setError('Username is required');
+      return false;
+    }
 
-    if (!isApiAvailable) {
-      setError('Server is currently unavailable. Please try again later.');
-      setIsLoading(false);
-      return;
+    if (!/^[a-zA-Z0-9_]{3,30}$/.test(username)) {
+      setError('Username must be 3-30 characters long and can only contain letters, numbers, and underscores');
+      return false;
+    }
+
+    if (!password) {
+      setError('Password is required');
+      return false;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return false;
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
-      setIsLoading(false)
-      return
+      setError('Passwords do not match');
+      return false;
     }
+
+    return true;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+
+    if (!isApiAvailable) {
+      setError('Server is currently unavailable. Please try again later.');
+      return;
+    }
+
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
       console.log('Making registration request to:', `${API_URL}${ENDPOINTS.register}`)
@@ -54,7 +81,7 @@ function Register({ onRegister }: RegisterProps) {
           'Accept': 'application/json',
           'Origin': window.location.origin
         },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username: username.trim(), password })
       });
 
       console.log('Response status:', response.status)
@@ -140,6 +167,8 @@ function Register({ onRegister }: RegisterProps) {
                 disabled={isLoading || !isApiAvailable}
                 minLength={3}
                 maxLength={30}
+                pattern="^[a-zA-Z0-9_]{3,30}$"
+                title="Username must be 3-30 characters long and can only contain letters, numbers, and underscores"
               />
             </div>
             <div>
