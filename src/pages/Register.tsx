@@ -5,7 +5,7 @@ import ThemeToggle from '../components/ThemeToggle'
 import { API_URL, ENDPOINTS, checkApiHealth, fetchWithRetry } from '../config'
 
 interface RegisterProps {
-  onRegister: (userData: { id: string; username: string; token: string }) => void
+  onRegister: (userData: { id: string; username: string; token: string; profilePicture?: string }) => void
 }
 
 function Register({ onRegister }: RegisterProps) {
@@ -113,7 +113,12 @@ function Register({ onRegister }: RegisterProps) {
         throw new Error('Server returned invalid data format')
       }
 
-      onRegister(data)
+      onRegister({
+        id: data.id,
+        username: data.username,
+        token: data.token,
+        profilePicture: data.profilePicture
+      })
     } catch (err) {
       console.error('Registration error:', err)
       if (err instanceof TypeError && err.message.includes('Failed to fetch')) {

@@ -19,8 +19,15 @@ function App() {
   })
 
   const handleLogin = (userData: User) => {
-    setUser(userData)
-    localStorage.setItem('user', JSON.stringify(userData))
+    // Ensure profilePicture is included in userData
+    const userToSave = {
+      id: userData.id,
+      username: userData.username,
+      token: userData.token,
+      profilePicture: userData.profilePicture || ''
+    }
+    setUser(userToSave)
+    localStorage.setItem('user', JSON.stringify(userToSave))
   }
 
   const handleLogout = () => {

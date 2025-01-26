@@ -5,7 +5,7 @@ import ThemeToggle from '../components/ThemeToggle'
 import { API_URL } from '../config'
 
 interface LoginProps {
-  onLogin: (userData: { id: string; username: string; token: string }) => void
+  onLogin: (userData: { id: string; username: string; token: string; profilePicture?: string }) => void
 }
 
 function Login({ onLogin }: LoginProps) {
@@ -36,7 +36,12 @@ function Login({ onLogin }: LoginProps) {
         throw new Error(data.message || 'Login failed')
       }
 
-      onLogin(data)
+      onLogin({
+        id: data.id,
+        username: data.username,
+        token: data.token,
+        profilePicture: data.profilePicture
+      })
     } catch (err) {
       console.error('Login error:', err)
       setError(err instanceof Error ? err.message : 'Login failed')
