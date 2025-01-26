@@ -9,10 +9,13 @@ function VideoPlayer({ src, className = '', controls = true }: VideoPlayerProps)
 
   return (
     <video 
-      src={src as string} // Type assertion since we've already checked for null/undefined
       className={className}
       controls={controls}
-    />
+    >
+      <source src={src} type="video/mp4" />
+      <source src={src} type="video/webm" />
+      Your browser does not support the video tag.
+    </video>
   );
 }
 
