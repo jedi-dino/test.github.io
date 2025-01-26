@@ -195,8 +195,6 @@ function Chat({ user, onLogout }: ChatProps) {
   }
 
   const renderMessageContent = (message: Message) => {
-    const isValidVideoUrl = message.mediaType === 'video' && typeof message.mediaUrl === 'string';
-
     return (
       <div>
         {message.content && <p className="mb-2">{message.content}</p>}
@@ -209,7 +207,7 @@ function Chat({ user, onLogout }: ChatProps) {
                 className="max-w-xs rounded-lg cursor-pointer"
                 onClick={() => window.open(message.mediaUrl, '_blank')}
               />
-            ) : isValidVideoUrl ? (
+            ) : message.mediaType === 'video' && message.mediaUrl ? (
               <VideoPlayer 
                 src={message.mediaUrl}
                 className="max-w-xs rounded-lg"
@@ -229,8 +227,6 @@ function Chat({ user, onLogout }: ChatProps) {
   const renderMediaPreview = () => {
     if (!mediaPreview) return null
 
-    const isValidVideoPreview = selectedMedia?.type.startsWith('video/') && typeof mediaPreview === 'string';
-
     return (
       <div className="mb-4 relative inline-block">
         {selectedMedia?.type.startsWith('image/') ? (
@@ -239,7 +235,7 @@ function Chat({ user, onLogout }: ChatProps) {
             alt="Upload preview" 
             className="max-h-32 rounded-lg"
           />
-        ) : isValidVideoPreview ? (
+        ) : selectedMedia?.type.startsWith('video/') && mediaPreview ? (
           <VideoPlayer 
             src={mediaPreview}
             className="max-h-32 rounded-lg"
