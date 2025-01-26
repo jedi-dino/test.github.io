@@ -30,6 +30,31 @@ const corsOptions = {
   optionsSuccessStatus: 204
 };
 
+// Enable CORS for all routes
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (corsOptions.origin.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Origin');
+  }
+  next();
+});
+
+// Handle preflight requests
+app.options('*', (req, res) => {
+  const origin = req.headers.origin;
+  if (corsOptions.origin.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Origin');
+    res.status(204).send();
+  } else {
+    console.log('Blocked CORS request from:', origin);
+    res.status(403).send();
+  }
+});
+
 // Middleware
 app.use(cors(corsOptions));
 app.use(express.json());
@@ -46,31 +71,6 @@ app.use((req, res, next) => {
   console.log('Access-Control-Request-Headers:', req.headers['access-control-request-headers']);
   
   next();
-});
-
-// Add response headers middleware
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (corsOptions.origin.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-  }
-  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Origin');
-  next();
-});
-
-// Handle preflight requests
-app.options('*', (req, res) => {
-  const origin = req.headers.origin;
-  if (corsOptions.origin.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Origin');
-    res.status(204).send();
-  } else {
-    console.log('Blocked CORS request from:', origin);
-    res.status(403).send();
-  }
 });
 
 // Apply rate limiting
