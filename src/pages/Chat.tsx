@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import UserSearch from '../components/UserSearch'
 import UserMenu from '../components/UserMenu'
+import RecentChats from '../components/RecentChats'
 import { API_URL } from '../config'
 
 interface Message {
@@ -9,6 +10,7 @@ interface Message {
   receiverId: string
   content: string
   timestamp: string
+  read: boolean
 }
 
 interface ChatUser {
@@ -29,8 +31,10 @@ function Chat({ user, onLogout }: ChatProps) {
   const [selectedUser, setSelectedUser] = useState<ChatUser | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
+  const [isSearching, setIsSearching] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const pollInterval = useRef<number | null>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -43,6 +47,14 @@ function Chat({ user, onLogout }: ChatProps) {
   useEffect(() => {
     if (selectedUser) {
       fetchMessages()
+      // Start polling for new messages
+      pollInterval.current = window.setInterval(fetchMessages, 5000)
+    }
+
+    return () => {
+      if (pollInterval.current) {
+        window.clearInterval(pollInterval.current)
+      }
     }
   }, [selectedUser])
 
@@ -116,12 +128,13 @@ function Chat({ user, onLogout }: ChatProps) {
   const handleSelectUser = (chatUser: ChatUser) => {
     setSelectedUser(chatUser)
     setMessages([])
+    setIsSearching(false)
   }
 
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
       {/* Sidebar */}
-      <div className="w-1/3 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
+      <div className="w-1/3 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
         {/* Sidebar Header */}
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
@@ -129,17 +142,33 @@ function Chat({ user, onLogout }: ChatProps) {
             <UserMenu user={user} onLogout={onLogout} />
           </div>
           <div className="mt-4">
-            <UserSearch 
-              onSelectUser={handleSelectUser} 
-              currentUserId={user.id}
-              token={user.token}
-            />
+            <button
+              onClick={() => setIsSearching(!isSearching)}
+              className="btn btn-secondary w-full dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+            >
+              {isSearching ? '← Back to Chats' : 'Start New Chat'}
+            </button>
           </div>
         </div>
 
-        {/* User List could go here */}
-        <div className="overflow-y-auto">
-          {/* Add recent conversations here */}
+        {/* User List */}
+        <div className="flex-1 overflow-y-auto">
+          {isSearching ? (
+            <div className="p-4">
+              <UserSearch 
+                onSelectUser={handleSelectUser} 
+                currentUserId={user.id}
+                token={user.token}
+              />
+            </div>
+          ) : (
+            <RecentChats
+              token={user.token}
+              currentUserId={user.id}
+              onSelectUser={handleSelectUser}
+              selectedUserId={selectedUser?.id}
+            />
+          )}
         </div>
       </div>
 
@@ -154,7 +183,7 @@ function Chat({ user, onLogout }: ChatProps) {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900">
-              {isLoading ? (
+              {isLoading && messages.length === 0 ? (
                 <div className="flex justify-center items-center h-full">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                 </div>

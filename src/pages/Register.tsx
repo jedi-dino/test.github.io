@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import Logo from '../components/Logo'
 import ThemeToggle from '../components/ThemeToggle'
-import { API_URL } from '../config'
+import { API_URL, ENDPOINTS, checkApiHealth, fetchWithRetry } from '../config'
 
 interface RegisterProps {
   onRegister: (userData: { id: string; username: string; token: string }) => void
@@ -13,39 +13,91 @@ function Register({ onRegister }: RegisterProps) {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [isApiAvailable, setIsApiAvailable] = useState(true)
+
+  useEffect(() => {
+    const checkApi = async () => {
+      const isAvailable = await checkApiHealth();
+      setIsApiAvailable(isAvailable);
+      if (!isAvailable) {
+        setError('Unable to connect to server. Please try again later.');
+      }
+    };
+    checkApi();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setIsLoading(true)
+
+    if (!isApiAvailable) {
+      setError('Server is currently unavailable. Please try again later.');
+      setIsLoading(false);
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError('Passwords do not match')
+      setIsLoading(false)
       return
     }
 
     try {
-      const response = await fetch(`${API_URL}/api/auth/register`, {
+      console.log('Making registration request to:', `${API_URL}${ENDPOINTS.register}`)
+      
+      const response = await fetchWithRetry(`${API_URL}${ENDPOINTS.register}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Origin': window.location.origin
         },
         body: JSON.stringify({ username, password })
-      })
+      });
 
+      console.log('Response status:', response.status)
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()))
+
+      let data
       const contentType = response.headers.get('content-type')
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Server returned invalid response format')
+      
+      try {
+        if (contentType && contentType.includes('application/json')) {
+          data = await response.json()
+          console.log('Response data:', data)
+        } else {
+          const text = await response.text()
+          console.log('Raw response:', text)
+          throw new Error('Server returned non-JSON response')
+        }
+      } catch (parseError) {
+        console.error('Error parsing response:', parseError)
+        throw new Error('Failed to parse server response')
       }
 
-      const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.message || 'Registration failed')
+        throw new Error(data?.message || `Registration failed with status ${response.status}`)
+      }
+
+      if (!data.id || !data.username || !data.token) {
+        console.error('Invalid response format:', data)
+        throw new Error('Server returned invalid data format')
       }
 
       onRegister(data)
     } catch (err) {
       console.error('Registration error:', err)
-      setError(err instanceof Error ? err.message : 'Registration failed')
+      if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
+        setError('Unable to connect to server. Please check your internet connection and try again.')
+      } else if (err instanceof Error && err.message.includes('timeout')) {
+        setError('Request timed out. Please try again.')
+      } else {
+        setError(err instanceof Error ? err.message : 'Registration failed')
+      }
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -85,6 +137,9 @@ function Register({ onRegister }: RegisterProps) {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="username"
+                disabled={isLoading || !isApiAvailable}
+                minLength={3}
+                maxLength={30}
               />
             </div>
             <div>
@@ -101,6 +156,8 @@ function Register({ onRegister }: RegisterProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="new-password"
+                disabled={isLoading || !isApiAvailable}
+                minLength={6}
               />
             </div>
             <div>
@@ -117,13 +174,19 @@ function Register({ onRegister }: RegisterProps) {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 autoComplete="new-password"
+                disabled={isLoading || !isApiAvailable}
+                minLength={6}
               />
             </div>
           </div>
 
           <div>
-            <button type="submit" className="btn btn-primary w-full dark:hover:bg-blue-700">
-              Create Account
+            <button 
+              type="submit" 
+              className="btn btn-primary w-full dark:hover:bg-blue-700"
+              disabled={isLoading || !isApiAvailable}
+            >
+              {isLoading ? 'Creating Account...' : 'Create Account'}
             </button>
           </div>
         </form>
