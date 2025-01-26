@@ -23,9 +23,8 @@ function VideoPlayer({ src, className = '', controls = true }: VideoPlayerProps)
       className={className}
       controls={controls}
       autoPlay={false}
+      src={videoUrl}
     >
-      <source src={videoUrl} type="video/mp4" />
-      <source src={videoUrl} type="video/webm" />
       Your browser does not support the video tag.
     </video>
   );
