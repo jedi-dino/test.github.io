@@ -1,100 +1,91 @@
-import express from 'express';
-import { generateToken } from './auth.js';
-import User from './User.js';
+const express = require('express')
+const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
+const User = require('./User')
 
-const router = express.Router();
+const router = express.Router()
 
-// Register new user
 router.post('/register', async (req, res) => {
   try {
-    console.log('Registration request received:', { ...req.body, password: '[REDACTED]' });
-    const { username, password } = req.body;
+    const { username, password } = req.body
 
     if (!username || !password) {
-      return res.status(400).json({ message: 'Username and password are required' });
+      return res.status(400).json({ message: 'Username and password are required' })
     }
 
-    // Validate username format
-    if (!/^[a-zA-Z0-9_]{3,30}$/.test(username)) {
-      return res.status(400).json({
-        message: 'Username must be 3-30 characters long and can only contain letters, numbers, and underscores'
-      });
-    }
-
-    // Check if username already exists
-    const existingUser = await User.findOne({ username: { $regex: new RegExp(`^${username}$`, 'i') } });
+    const existingUser = await User.findOne({ username })
     if (existingUser) {
-      console.log('Username already exists:', username);
-      return res.status(400).json({ message: 'Username already exists' });
+      return res.status(400).json({ message: 'Username already exists' })
     }
 
-    // Create new user
-    const user = new User({ username, password });
-    await user.save();
-    console.log('User created successfully:', user._id);
+    const hashedPassword = await bcrypt.hash(password, 10)
+    const user = new User({
+      username,
+      password: hashedPassword
+    })
 
-    // Generate token
-    const token = generateToken(user._id);
+    await user.save()
+
+    const token = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    )
 
     res.status(201).json({
-      id: user._id,
-      username: user.username,
-      profilePicture: user.profilePicture,
+      message: 'User created successfully',
+      user: {
+        id: user._id,
+        username: user.username
+      },
       token
-    });
+    })
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ 
-      message: 'Error creating user',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    console.error('Registration error:', error)
+    res.status(500).json({ message: 'Error creating user' })
   }
-});
+})
 
-// Login user
 router.post('/login', async (req, res) => {
   try {
-    console.log('Login request received:', { ...req.body, password: '[REDACTED]' });
-    const { username, password } = req.body;
+    const { username, password } = req.body
 
     if (!username || !password) {
-      return res.status(400).json({ message: 'Username and password are required' });
+      return res.status(400).json({ message: 'Username and password are required' })
     }
 
-    // Find user
-    const user = await User.findOne({ username: { $regex: new RegExp(`^${username}$`, 'i') } });
+    const user = await User.findOne({ username })
     if (!user) {
-      console.log('User not found:', username);
-      return res.status(401).json({ message: 'Invalid username or password' });
+      return res.status(401).json({ message: 'Invalid username or password' })
     }
 
-    // Check password
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      console.log('Invalid password for user:', user._id);
-      return res.status(401).json({ message: 'Invalid username or password' });
+    const isValidPassword = await bcrypt.compare(password, user.password)
+    if (!isValidPassword) {
+      return res.status(401).json({ message: 'Invalid username or password' })
     }
 
-    // Update last active timestamp
-    user.lastActive = new Date();
-    await user.save();
-
-    // Generate token
-    const token = generateToken(user._id);
+    const token = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    )
 
     res.json({
-      id: user._id,
-      username: user.username,
-      profilePicture: user.profilePicture,
+      message: 'Login successful',
+      user: {
+        id: user._id,
+        username: user.username
+      },
       token
-    });
+    })
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ 
-      message: 'Error logging in',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    console.error('Login error:', error)
+    res.status(500).json({ message: 'Error during login' })
   }
-});
+})
 
-export default router;
+router.post('/logout', (req, res) => {
+  res.json({ message: 'Logged out successfully' })
+})
+
+module.exports = router
