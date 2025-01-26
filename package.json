@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview",
-    "deploy": "powershell -File deploy.ps1"
+    "preview": "vite preview"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -22,6 +21,6 @@
     "postcss": "^8.4.33",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3",
-    "vite": "^5.0.12"
+    "vite": "^4.5.9"
   }
 }
