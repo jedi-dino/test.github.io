@@ -1,6 +1,7 @@
 import express from 'express';
 import { auth } from './auth.js';
 import Message from './Message.js';
+import mongoose from 'mongoose';
 
 const router = express.Router();
 
@@ -136,18 +137,32 @@ router.post('/', auth, async (req, res) => {
 // Delete conversation with a user
 router.delete('/:userId', auth, async (req, res) => {
   try {
+    // Convert string IDs to ObjectIds
+    const userId = new mongoose.Types.ObjectId(req.params.userId);
+    const currentUserId = new mongoose.Types.ObjectId(req.user._id);
+
+    console.log('Deleting messages between:', {
+      currentUserId: currentUserId.toString(),
+      userId: userId.toString()
+    });
+
     const result = await Message.deleteMany({
       $or: [
-        { sender: req.user._id, recipient: req.params.userId },
-        { sender: req.params.userId, recipient: req.user._id }
+        { sender: currentUserId, recipient: userId },
+        { sender: userId, recipient: currentUserId }
       ]
     });
+
+    console.log('Delete result:', result);
 
     if (result.deletedCount === 0) {
       return res.status(404).json({ message: 'No messages found to delete' });
     }
 
-    res.json({ message: 'Conversation deleted successfully' });
+    res.json({ 
+      message: 'Conversation deleted successfully',
+      deletedCount: result.deletedCount
+    });
   } catch (error) {
     console.error('Delete conversation error:', error);
     res.status(500).json({ message: 'Error deleting conversation' });

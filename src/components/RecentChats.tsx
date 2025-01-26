@@ -79,6 +79,7 @@ function RecentChats({ token, currentUserId, onSelectUser, selectedUserId }: Rec
   const handleDelete = async (userId: string, e: React.MouseEvent) => {
     e.stopPropagation() // Prevent triggering the conversation selection
     setDeletingId(userId)
+    setError(null)
 
     try {
       const response = await fetch(`${API_URL}/api/messages/${userId}`, {
@@ -89,13 +90,21 @@ function RecentChats({ token, currentUserId, onSelectUser, selectedUserId }: Rec
         }
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        const data = await response.json()
         throw new Error(data.message || 'Failed to delete conversation')
       }
 
+      console.log('Delete response:', data)
+
       // Remove the conversation from the list
       setConversations(prev => prev.filter(conv => conv.user._id !== userId))
+      
+      // If this was the selected conversation, clear it
+      if (selectedUserId === userId) {
+        onSelectUser({ id: '', username: '' })
+      }
     } catch (error) {
       console.error('Error deleting conversation:', error)
       setError(error instanceof Error ? error.message : 'Failed to delete conversation')
@@ -200,7 +209,7 @@ function RecentChats({ token, currentUserId, onSelectUser, selectedUserId }: Rec
             <button
               onClick={(e) => handleDelete(conversation.user._id, e)}
               disabled={deletingId === conversation.user._id}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-600"
               title="Delete conversation"
             >
               {deletingId === conversation.user._id ? (
