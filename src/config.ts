@@ -1,5 +1,5 @@
-// API URL (pointing to Replit backend)
-export const API_URL = 'https://chat-app.yourusername.repl.co';
+// API URL from environment variable
+export const API_URL = import.meta.env.VITE_API_URL
 
 // API Endpoints
 export const ENDPOINTS = {
@@ -19,20 +19,20 @@ export const ENDPOINTS = {
     RECENT: '/api/messages/recent/chats',
     READ: '/api/messages/read'
   }
-};
+}
 
 // File upload limits
-export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
+export const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB in bytes
 export const ALLOWED_FILE_TYPES = {
   image: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
   video: ['video/mp4', 'video/webm']
-};
+}
 
 // Message polling interval (in milliseconds)
-export const MESSAGE_POLL_INTERVAL = 5000;
+export const MESSAGE_POLL_INTERVAL = 5000
 
 // Recent chats polling interval (in milliseconds)
-export const RECENT_CHATS_POLL_INTERVAL = 10000;
+export const RECENT_CHATS_POLL_INTERVAL = 10000
 
 // Local storage keys
 export const STORAGE_KEYS = {
@@ -40,16 +40,16 @@ export const STORAGE_KEYS = {
   USER: 'user',
   SELECTED_CHAT_USER: 'selectedChatUser',
   THEME: 'theme'
-};
+}
 
 // Theme settings
 export const THEMES = {
   LIGHT: 'light',
   DARK: 'dark'
-} as const;
+} as const
 
 // Default theme
-export const DEFAULT_THEME = THEMES.LIGHT;
+export const DEFAULT_THEME = THEMES.LIGHT
 
 // Validation rules
 export const VALIDATION = {
@@ -65,7 +65,7 @@ export const VALIDATION = {
   MESSAGE: {
     MAX_LENGTH: 1000
   }
-};
+}
 
 // Error messages
 export const ERROR_MESSAGES = {
@@ -82,17 +82,17 @@ export const ERROR_MESSAGES = {
     PASSWORD_LENGTH: `Password must be between ${VALIDATION.PASSWORD.MIN_LENGTH} and ${VALIDATION.PASSWORD.MAX_LENGTH} characters`,
     MESSAGE_LENGTH: `Message cannot exceed ${VALIDATION.MESSAGE.MAX_LENGTH} characters`
   }
-};
+}
 
 // API utilities
 export const checkApiHealth = async (): Promise<boolean> => {
   try {
-    const response = await fetch(`${API_URL}/health`);
-    return response.ok;
+    const response = await fetch(`${API_URL}/health`)
+    return response.ok
   } catch {
-    return false;
+    return false
   }
-};
+}
 
 export const fetchWithRetry = async (
   url: string,
@@ -101,12 +101,12 @@ export const fetchWithRetry = async (
   delay = 1000
 ): Promise<Response> => {
   try {
-    const response = await fetch(url, options);
-    if (response.ok) return response;
-    throw new Error(`HTTP error! status: ${response.status}`);
+    const response = await fetch(url, options)
+    if (response.ok) return response
+    throw new Error(`HTTP error! status: ${response.status}`)
   } catch (error) {
-    if (retries === 0) throw error;
-    await new Promise(resolve => setTimeout(resolve, delay));
-    return fetchWithRetry(url, options, retries - 1, delay * 2);
+    if (retries === 0) throw error
+    await new Promise(resolve => setTimeout(resolve, delay))
+    return fetchWithRetry(url, options, retries - 1, delay * 2)
   }
-};
+}

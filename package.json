@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "deploy": "chmod +x deploy.sh && ./deploy.sh"
+    "deploy": "powershell -File deploy.ps1"
   },
   "dependencies": {
     "react": "^18.2.0",
