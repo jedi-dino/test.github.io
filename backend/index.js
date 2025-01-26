@@ -5,7 +5,6 @@ import dotenv from 'dotenv';
 import authRoutes from './authRoutes.js';
 import userRoutes from './userRoutes.js';
 import messageRoutes from './messageRoutes.js';
-import { rateLimit } from './auth.js';
 
 // Load environment variables
 dotenv.config();
@@ -73,9 +72,6 @@ app.options('*', (req, res) => {
     res.status(403).send();
   }
 });
-
-// Apply rate limiting
-app.use(rateLimit());
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
