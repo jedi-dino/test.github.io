@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/chat-app/', // Base URL for GitHub Pages repository
+  base: '/test.github.io/', // Updated base URL to match repository name
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
