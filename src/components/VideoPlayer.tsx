@@ -5,28 +5,27 @@ interface VideoPlayerProps {
 }
 
 function VideoPlayer({ src, className = '', controls = true }: VideoPlayerProps) {
-  // Convert null to undefined for the source element
-  const videoSrc = src || undefined;
-  
-  if (!videoSrc) return null;
+  // Early return if no source
+  if (!src) return null;
 
-  // Determine video type from src
-  const getVideoType = (url: string) => {
-    if (url.includes('data:video/mp4')) return 'video/mp4';
-    if (url.includes('data:video/webm')) return 'video/webm';
-    if (url.endsWith('.mp4')) return 'video/mp4';
-    if (url.endsWith('.webm')) return 'video/webm';
-    return 'video/mp4'; // default to mp4
-  };
-
-  const videoType = getVideoType(videoSrc);
+  // Create a URL object from the source
+  let videoUrl: string;
+  try {
+    const url = new URL(src);
+    videoUrl = url.toString();
+  } catch {
+    // If not a valid URL, use the string directly (e.g., for data URLs)
+    videoUrl = src;
+  }
 
   return (
     <video 
       className={className}
       controls={controls}
+      autoPlay={false}
     >
-      <source src={videoSrc} type={videoType} />
+      <source src={videoUrl} type="video/mp4" />
+      <source src={videoUrl} type="video/webm" />
       Your browser does not support the video tag.
     </video>
   );
