@@ -36,7 +36,7 @@ function RecentChats({ token, currentUserId, onSelectUser, selectedUserId }: Rec
     // Poll for new conversations every 10 seconds
     const interval = setInterval(fetchConversations, 10000)
     return () => clearInterval(interval)
-  }, [])
+  }, [currentUserId]) // Add currentUserId as dependency
 
   const fetchConversations = async () => {
     try {
@@ -60,7 +60,11 @@ function RecentChats({ token, currentUserId, onSelectUser, selectedUserId }: Rec
 
       const data = await response.json()
       console.log('Recent conversations response:', data);
-      setConversations(Array.isArray(data) ? data : [])
+      // Filter out conversations with the current user
+      const filteredConversations = Array.isArray(data) 
+        ? data.filter(conv => conv.user._id !== currentUserId)
+        : [];
+      setConversations(filteredConversations)
       setError(null)
     } catch (error) {
       console.error('Error fetching conversations:', error)
