@@ -3,6 +3,7 @@ import UserSearch from '../components/UserSearch'
 import UserMenu from '../components/UserMenu'
 import RecentChats from '../components/RecentChats'
 import VideoPlayer from '../components/VideoPlayer'
+import ThemeToggle from '../components/ThemeToggle'
 import { API_URL, ENDPOINTS } from '../config'
 
 interface Message {
@@ -263,7 +264,10 @@ const Chat: React.FC<ChatProps> = ({ user, onLogout }): JSX.Element => {
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Messages</h2>
-            <UserMenu user={user} onLogout={onLogout} />
+            <div className="flex items-center space-x-2">
+              <ThemeToggle />
+              <UserMenu user={user} onLogout={onLogout} />
+            </div>
           </div>
           <div className="mt-4">
             <button

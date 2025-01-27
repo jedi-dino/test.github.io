@@ -8,32 +8,22 @@ const messageRoutes = require('./messageRoutes')
 
 const app = express()
 
-// CORS middleware
-app.use((req, res, next) => {
-  // Allow requests from localhost during development and production domains
-  const allowedOrigins = [
+// CORS configuration
+const corsOptions = {
+  origin: [
     'http://localhost:5174',
     'http://localhost:5173',
     'https://test.github.io',
     'https://jedi-dino.github.io'
-  ]
-  const origin = req.headers.origin
-  
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin)
-  }
-  
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-  res.setHeader('Access-Control-Allow-Credentials', 'true')
-  
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end()
-  }
-  
-  next()
-})
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 200
+}
+
+// Use cors middleware
+app.use(cors(corsOptions))
 
 // Parse JSON bodies
 app.use(express.json())
@@ -79,12 +69,7 @@ const PORT = process.env.PORT || 3000
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`)
-  console.log('CORS enabled for:', [
-    'http://localhost:5174',
-    'http://localhost:5173',
-    'https://test.github.io',
-    'https://jedi-dino.github.io'
-  ])
+  console.log('CORS enabled for:', corsOptions.origin)
 })
 
 // Handle uncaught errors

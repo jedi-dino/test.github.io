@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { STORAGE_KEYS } from './config'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Chat from './pages/Chat'
@@ -25,6 +26,35 @@ const App: React.FC = (): JSX.Element => {
     }
   }, [user])
 
+  // Initialize theme
+  useEffect(() => {
+    const savedTheme = localStorage.getItem(STORAGE_KEYS.THEME)
+    if (savedTheme === 'dark') {
+      document.documentElement.classList.add('dark')
+    } else if (savedTheme === 'light') {
+      document.documentElement.classList.remove('dark')
+    } else {
+      // Check system preference
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+
+      // Listen for system theme changes
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+      const handleChange = (e: MediaQueryListEvent) => {
+        if (e.matches) {
+          document.documentElement.classList.add('dark')
+        } else {
+          document.documentElement.classList.remove('dark')
+        }
+      }
+      mediaQuery.addEventListener('change', handleChange)
+      return () => mediaQuery.removeEventListener('change', handleChange)
+    }
+  }, [])
+
   const handleLogin = (userData: User) => {
     setUser(userData)
   }
@@ -32,6 +62,13 @@ const App: React.FC = (): JSX.Element => {
   const handleLogout = () => {
     setUser(null)
     localStorage.removeItem('user')
+  }
+
+  const handleUpdateUser = (updatedUser: Partial<User>) => {
+    if (user) {
+      const newUser = { ...user, ...updatedUser }
+      setUser(newUser)
+    }
   }
 
   return (
@@ -81,7 +118,11 @@ const App: React.FC = (): JSX.Element => {
           path="/settings"
           element={
             user ? (
-              <Settings user={user} onLogout={handleLogout} />
+              <Settings 
+                user={user} 
+                onLogout={handleLogout} 
+                onUpdateUser={handleUpdateUser}
+              />
             ) : (
               <Navigate to="/login" replace />
             )
