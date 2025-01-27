@@ -13,8 +13,18 @@ const messageSchema = new mongoose.Schema({
   },
   content: {
     type: String,
-    required: [true, 'Message content is required'],
-    maxlength: [1000, 'Message content cannot exceed 1000 characters']
+    required: false,
+    maxlength: [1000, 'Message content cannot exceed 1000 characters'],
+    default: ''
+  },
+  mediaType: {
+    type: String,
+    enum: ['image', 'video', null],
+    default: null
+  },
+  mediaUrl: {
+    type: String,
+    default: null
   },
   read: {
     type: Boolean,
@@ -30,6 +40,14 @@ const messageSchema = new mongoose.Schema({
       return ret
     }
   }
+})
+
+// Validate that either content or media is present
+messageSchema.pre('save', function(next) {
+  if (!this.content && !this.mediaUrl) {
+    next(new Error('Message must have either content or media'))
+  }
+  next()
 })
 
 // Instance method to safely convert message to JSON

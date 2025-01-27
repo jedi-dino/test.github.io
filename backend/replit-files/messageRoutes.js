@@ -1,9 +1,42 @@
 const express = require('express')
 const jwt = require('jsonwebtoken')
+const multer = require('multer')
+const path = require('path')
+const fs = require('fs')
 const Message = require('./Message')
 const User = require('./User')
 
 const router = express.Router()
+
+// Configure multer for file upload
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, 'uploads', 'messages')
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true })
+    }
+    cb(null, uploadDir)
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
+    cb(null, uniqueSuffix + path.extname(file.originalname))
+  }
+})
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm']
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true)
+    } else {
+      cb(new Error('Invalid file type. Only images and videos are allowed.'))
+    }
+  }
+}).single('media')
 
 // Middleware to verify JWT token
 const authenticateToken = (req, res, next) => {
@@ -30,65 +63,102 @@ const authenticateToken = (req, res, next) => {
 }
 
 // Send a message
-router.post('/', authenticateToken, async (req, res) => {
-  try {
-    const { recipientId, content } = req.body
+router.post('/', authenticateToken, (req, res) => {
+  upload(req, res, async (err) => {
+    try {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({
+            status: 'error',
+            message: 'File size cannot exceed 10MB'
+          })
+        }
+        return res.status(400).json({
+          status: 'error',
+          message: err.message
+        })
+      } else if (err) {
+        return res.status(400).json({
+          status: 'error',
+          message: err.message
+        })
+      }
 
-    if (!recipientId || !content) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Recipient ID and content are required'
-      })
-    }
+      const { recipientId, content } = req.body
 
-    if (content.length > 1000) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Message content cannot exceed 1000 characters'
-      })
-    }
+      if (!recipientId || (!content && !req.file)) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Recipient ID and either content or media are required'
+        })
+      }
 
-    const recipient = await User.findById(recipientId)
-    if (!recipient) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'Recipient not found'
-      })
-    }
+      if (content && content.length > 1000) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Message content cannot exceed 1000 characters'
+        })
+      }
 
-    const message = new Message({
-      sender: req.user.userId,
-      recipient: recipientId,
-      content,
-      read: false
-    })
+      const recipient = await User.findById(recipientId)
+      if (!recipient) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Recipient not found'
+        })
+      }
 
-    await message.save()
-
-    res.status(201).json({
-      status: 'success',
-      message: {
-        id: message._id,
-        content: message.content,
+      const messageData = {
         sender: req.user.userId,
         recipient: recipientId,
-        read: message.read,
-        createdAt: message.createdAt
+        content: content || '',
+        read: false
       }
-    })
-  } catch (error) {
-    console.error('Message send error:', error)
-    res.status(500).json({
-      status: 'error',
-      message: 'Error sending message'
-    })
-  }
+
+      if (req.file) {
+        messageData.mediaType = req.file.mimetype.startsWith('image/') ? 'image' : 'video'
+        messageData.mediaUrl = `/api/messages/uploads/${req.file.filename}`
+      }
+
+      const message = new Message(messageData)
+      await message.save()
+
+      // Populate sender and recipient details
+      await message.populate('sender recipient', 'username')
+
+      res.status(201).json({
+        status: 'success',
+        message: {
+          _id: message._id,
+          content: message.content,
+          sender: {
+            _id: message.sender._id,
+            username: message.sender.username
+          },
+          recipient: {
+            _id: message.recipient._id,
+            username: message.recipient.username
+          },
+          mediaType: message.mediaType,
+          mediaUrl: message.mediaUrl,
+          read: message.read,
+          createdAt: message.createdAt
+        }
+      })
+    } catch (error) {
+      console.error('Message send error:', error)
+      res.status(500).json({
+        status: 'error',
+        message: 'Error sending message'
+      })
+    }
+  })
 })
 
 // Get messages with a specific user
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/:userId', authenticateToken, async (req, res) => {
   try {
-    const { userId } = req.query
+    const { userId } = req.params
     if (!userId) {
       return res.status(400).json({
         status: 'error',
@@ -101,19 +171,11 @@ router.get('/', authenticateToken, async (req, res) => {
         { sender: req.user.userId, recipient: userId },
         { sender: userId, recipient: req.user.userId }
       ]
-    }).sort({ createdAt: 1 })
-
-    res.json({
-      status: 'success',
-      messages: messages.map(msg => ({
-        id: msg._id,
-        content: msg.content,
-        sender: msg.sender,
-        recipient: msg.recipient,
-        read: msg.read,
-        createdAt: msg.createdAt
-      }))
     })
+    .populate('sender recipient', 'username')
+    .sort({ createdAt: 1 })
+
+    res.json(messages)
   } catch (error) {
     console.error('Message fetch error:', error)
     res.status(500).json({
@@ -133,7 +195,7 @@ router.get('/recent/chats', authenticateToken, async (req, res) => {
       ]
     })
     .sort({ createdAt: -1 })
-    .populate('sender recipient', 'username lastActive')
+    .populate('sender recipient', 'username lastActive imageUrl')
 
     // Get unique users from messages
     const userMap = new Map()
@@ -147,6 +209,7 @@ router.get('/recent/chats', authenticateToken, async (req, res) => {
           id: otherUser._id,
           username: otherUser.username,
           lastActive: otherUser.lastActive,
+          imageUrl: otherUser.imageUrl,
           lastMessage: {
             id: msg._id,
             content: msg.content,

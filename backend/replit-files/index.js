@@ -10,10 +10,14 @@ const messageRoutes = require('./messageRoutes')
 
 const app = express()
 
-// Create uploads directory if it doesn't exist
+// Create uploads directories if they don't exist
 const uploadsDir = path.join(__dirname, 'uploads')
+const messageUploadsDir = path.join(__dirname, 'uploads', 'messages')
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true })
+}
+if (!fs.existsSync(messageUploadsDir)) {
+  fs.mkdirSync(messageUploadsDir, { recursive: true })
 }
 
 // CORS configuration
@@ -36,8 +40,9 @@ app.use(cors(corsOptions))
 // Parse JSON bodies
 app.use(express.json())
 
-// Serve static files from uploads directory
+// Serve static files from uploads directories
 app.use('/api/users/uploads', express.static(path.join(__dirname, 'uploads')))
+app.use('/api/messages/uploads', express.static(path.join(__dirname, 'uploads', 'messages')))
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
@@ -82,6 +87,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`)
   console.log('CORS enabled for:', corsOptions.origin)
   console.log('Uploads directory:', uploadsDir)
+  console.log('Message uploads directory:', messageUploadsDir)
 })
 
 // Handle uncaught errors

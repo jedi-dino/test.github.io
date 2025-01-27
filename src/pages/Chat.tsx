@@ -157,38 +157,34 @@ const Chat: React.FC<ChatProps> = ({ user, onLogout }): JSX.Element => {
     if (!selectedUser || (!newMessage.trim() && !selectedMedia)) return
 
     try {
-      let media = null
+      const formData = new FormData()
+      formData.append('recipientId', selectedUser.id)
+      if (newMessage.trim()) {
+        formData.append('content', newMessage.trim())
+      }
       if (selectedMedia) {
-        const reader = new FileReader()
-        media = await new Promise((resolve) => {
-          reader.onload = (e) => resolve(e.target?.result)
-          reader.readAsDataURL(selectedMedia)
-        })
+        formData.append('media', selectedMedia)
       }
 
       const response = await fetch(`${API_URL}${ENDPOINTS.MESSAGES.SEND}`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${user.token}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${user.token}`
         },
-        body: JSON.stringify({
-          recipientId: selectedUser.id,
-          content: newMessage.trim(),
-          media
-        })
+        body: formData
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to send message')
-      }
-
       const data = await response.json()
-      setMessages((prev) => [...prev, data])
-      setNewMessage('')
-      clearMedia()
+      if (data.status === 'success' && data.message) {
+        setMessages((prev) => [...prev, data.message])
+        setNewMessage('')
+        clearMedia()
+      } else {
+        throw new Error(data.message || 'Failed to send message')
+      }
     } catch (error) {
       console.error('Error sending message:', error)
+      alert('Failed to send message. Please try again.')
     }
   }
 
@@ -207,14 +203,14 @@ const Chat: React.FC<ChatProps> = ({ user, onLogout }): JSX.Element => {
           <div className="mt-2">
             {message.mediaType === 'image' ? (
               <img 
-                src={message.mediaUrl} 
+                src={`${API_URL}${message.mediaUrl}`}
                 alt="Message attachment" 
                 className="max-w-xs rounded-lg cursor-pointer"
-                onClick={() => window.open(message.mediaUrl!, '_blank')}
+                onClick={() => window.open(`${API_URL}${message.mediaUrl}`, '_blank')}
               />
             ) : message.mediaType === 'video' && message.mediaUrl ? (
               <div className="max-w-xs rounded-lg overflow-hidden">
-                <VideoPlayer src={message.mediaUrl} />
+                <VideoPlayer src={`${API_URL}${message.mediaUrl}`} />
               </div>
             ) : null}
           </div>
