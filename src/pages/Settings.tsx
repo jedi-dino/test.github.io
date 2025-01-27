@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { API_URL, ENDPOINTS, THEMES, STORAGE_KEYS } from '../config'
 import ProfilePicture from '../components/ProfilePicture'
+import ThemeToggle from '../components/ThemeToggle'
 
 interface User {
   id: string
@@ -134,7 +135,8 @@ const Settings: React.FC<SettingsProps> = ({ user, onLogout, onUpdateUser }): JS
                   Account Settings
                 </h3>
               </div>
-              <div className="flex space-x-4">
+              <div className="flex items-center space-x-4">
+                <ThemeToggle />
                 <Link
                   to="/chat"
                   className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
@@ -176,6 +178,7 @@ const Settings: React.FC<SettingsProps> = ({ user, onLogout, onUpdateUser }): JS
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                      autoComplete="username"
                     />
                   </div>
                 </div>
@@ -206,6 +209,7 @@ const Settings: React.FC<SettingsProps> = ({ user, onLogout, onUpdateUser }): JS
                         value={currentPassword}
                         onChange={(e) => setCurrentPassword(e.target.value)}
                         className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                        autoComplete="current-password"
                       />
                     </div>
                   </div>
@@ -222,6 +226,7 @@ const Settings: React.FC<SettingsProps> = ({ user, onLogout, onUpdateUser }): JS
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                        autoComplete="new-password"
                       />
                     </div>
                   </div>
@@ -238,6 +243,7 @@ const Settings: React.FC<SettingsProps> = ({ user, onLogout, onUpdateUser }): JS
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                        autoComplete="new-password"
                       />
                     </div>
                   </div>
