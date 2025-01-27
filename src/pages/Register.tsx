@@ -1,13 +1,7 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { API_URL, ENDPOINTS, VALIDATION } from '../config'
-
-interface User {
-  id: string
-  username: string
-  token: string
-  imageUrl?: string | null
-}
+import { User } from '../types'
 
 interface RegisterProps {
   onRegister: (userData: User) => void
@@ -88,7 +82,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister }): JSX.Element => {
         id: data.user.id,
         username: data.user.username,
         token: data.token,
-        imageUrl: data.user.imageUrl
+        imageUrl: data.user.imageUrl || undefined
       })
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to register')

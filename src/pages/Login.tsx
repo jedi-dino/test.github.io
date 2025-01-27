@@ -2,12 +2,7 @@ import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { API_URL, ENDPOINTS, fetchWithRetry } from '../config'
 
-interface User {
-  id: string
-  username: string
-  token: string
-  imageUrl?: string | null
-}
+import { User } from '../types'
 
 interface LoginProps {
   onLogin: (userData: User) => void
@@ -49,7 +44,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }): JSX.Element => {
         id: data.user.id,
         username: data.user.username,
         token: data.token,
-        imageUrl: data.user.imageUrl
+        imageUrl: data.user.imageUrl || undefined
       })
     } catch (error) {
       console.error('Login error:', error)

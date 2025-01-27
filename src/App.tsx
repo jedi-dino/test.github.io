@@ -6,12 +6,7 @@ import Register from './pages/Register'
 import Chat from './pages/Chat'
 import Settings from './pages/Settings'
 
-interface User {
-  id: string
-  username: string
-  token: string
-  imageUrl?: string | null
-}
+import { User } from './types'
 
 const App: React.FC = (): JSX.Element => {
   const [user, setUser] = useState<User | null>(() => {
