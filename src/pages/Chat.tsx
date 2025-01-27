@@ -152,9 +152,13 @@ const Chat: React.FC<ChatProps> = ({ user, onLogout }): JSX.Element => {
     }
   }
 
-  const handleSendMessage = async (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault()
-    if (!selectedUser || (!newMessage.trim() && !selectedMedia)) return
+    if (!selectedUser) return
+    if (!newMessage.trim() && !selectedMedia) {
+      alert('Please enter a message or select a file')
+      return
+    }
 
     try {
       const formData = new FormData()
@@ -175,6 +179,10 @@ const Chat: React.FC<ChatProps> = ({ user, onLogout }): JSX.Element => {
       })
 
       const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to send message')
+      }
+
       if (data.status === 'success' && data.message) {
         setMessages((prev) => [...prev, data.message])
         setNewMessage('')

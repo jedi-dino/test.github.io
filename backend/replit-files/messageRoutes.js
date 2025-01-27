@@ -86,10 +86,17 @@ router.post('/', authenticateToken, (req, res) => {
 
       const { recipientId, content } = req.body
 
-      if (!recipientId || (!content && !req.file)) {
+      if (!recipientId) {
         return res.status(400).json({
           status: 'error',
-          message: 'Recipient ID and either content or media are required'
+          message: 'Recipient ID is required'
+        })
+      }
+
+      if (!content && !req.file) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Either message content or media is required'
         })
       }
 

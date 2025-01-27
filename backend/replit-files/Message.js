@@ -45,9 +45,9 @@ const messageSchema = new mongoose.Schema({
 // Validate that either content or media is present
 messageSchema.pre('save', function(next) {
   if (!this.content && !this.mediaUrl) {
-    next(new Error('Message must have either content or media'))
+    return next(new Error('Message must have either content or media'))
   }
-  next()
+  return next()
 })
 
 // Instance method to safely convert message to JSON
