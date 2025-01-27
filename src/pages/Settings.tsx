@@ -8,6 +8,7 @@ interface User {
   id: string
   username: string
   token: string
+  imageUrl?: string
 }
 
 interface SettingsProps {
@@ -165,6 +166,97 @@ const Settings: React.FC<SettingsProps> = ({ user, onLogout, onUpdateUser }): JS
             )}
 
             <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-5 sm:px-6">
+              <div className="mb-8">
+                <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Profile Picture</h4>
+                <div className="flex items-center space-x-6">
+                  <ProfilePicture username={user.username} imageUrl={user.imageUrl} size="lg" className="w-20 h-20" />
+                  <div>
+                    <label
+                      htmlFor="profile-upload"
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer"
+                    >
+                      Upload New Picture
+                      <input
+                        id="profile-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            const formData = new FormData()
+                            formData.append('image', file)
+                            
+                            setError('')
+                            setSuccess('')
+                            setIsLoading(true)
+                            
+                            try {
+                              const response = await fetch(`${API_URL}${ENDPOINTS.USERS.UPDATE_PROFILE_PICTURE}`, {
+                                method: 'PUT',
+                                headers: {
+                                  'Authorization': `Bearer ${user.token}`
+                                },
+                                body: formData
+                              })
+                              
+                              const data = await response.json()
+                              if (data.status === 'success') {
+                                setSuccess('Profile picture updated successfully')
+                                onUpdateUser({ imageUrl: data.imageUrl })
+                              } else {
+                                setError(data.message || 'Failed to update profile picture')
+                              }
+                            } catch (error) {
+                              setError('Failed to update profile picture')
+                            } finally {
+                              setIsLoading(false)
+                              // Clear the input
+                              e.target.value = ''
+                            }
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                    {user.imageUrl && (
+                      <button
+                        onClick={async () => {
+                          setError('')
+                          setSuccess('')
+                          setIsLoading(true)
+                          
+                          try {
+                            const response = await fetch(`${API_URL}${ENDPOINTS.USERS.REMOVE_PROFILE_PICTURE}`, {
+                              method: 'DELETE',
+                              headers: {
+                                'Authorization': `Bearer ${user.token}`,
+                                'Content-Type': 'application/json'
+                              }
+                            })
+                            
+                            const data = await response.json()
+                            if (data.status === 'success') {
+                              setSuccess('Profile picture removed successfully')
+                              onUpdateUser({ imageUrl: undefined })
+                            } else {
+                              setError(data.message || 'Failed to remove profile picture')
+                            }
+                          } catch (error) {
+                            setError('Failed to remove profile picture')
+                          } finally {
+                            setIsLoading(false)
+                          }
+                        }}
+                        type="button"
+                        className="ml-4 inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      >
+                        Remove Picture
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <form onSubmit={handleUpdateProfile} className="space-y-6">
                 <div>
                   <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300">

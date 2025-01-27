@@ -2,11 +2,12 @@ import React from 'react'
 
 interface ProfilePictureProps {
   username: string
+  imageUrl?: string
   size?: 'sm' | 'md' | 'lg'
   className?: string
 }
 
-const ProfilePicture: React.FC<ProfilePictureProps> = ({ username, size = 'md', className = '' }) => {
+const ProfilePicture: React.FC<ProfilePictureProps> = ({ username, imageUrl, size = 'md', className = '' }) => {
   const getColor = (str: string) => {
     let hash = 0
     for (let i = 0; i < str.length; i++) {
@@ -24,6 +25,18 @@ const ProfilePicture: React.FC<ProfilePictureProps> = ({ username, size = 'md', 
     sm: 'w-8 h-8 text-sm',
     md: 'w-10 h-10 text-base',
     lg: 'w-12 h-12 text-lg'
+  }
+
+  if (imageUrl) {
+    return (
+      <div className={`${sizeClasses[size]} ${className} rounded-full overflow-hidden`}>
+        <img 
+          src={imageUrl} 
+          alt={`${username}'s profile`}
+          className="w-full h-full object-cover"
+        />
+      </div>
+    )
   }
 
   return (

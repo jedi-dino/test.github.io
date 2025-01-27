@@ -10,7 +10,9 @@ export const ENDPOINTS = {
   USERS: {
     SEARCH: '/api/users/search',
     PROFILE: '/api/users/profile',
-    UPDATE: '/api/users/update'
+    UPDATE: '/api/users/update',
+    UPDATE_PROFILE_PICTURE: '/api/users/profile-picture',
+    REMOVE_PROFILE_PICTURE: '/api/users/profile-picture'
   },
   MESSAGES: {
     SEND: '/api/messages',
