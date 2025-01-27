@@ -2,11 +2,19 @@ require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 const mongoose = require('mongoose')
+const path = require('path')
+const fs = require('fs')
 const authRoutes = require('./authRoutes')
 const userRoutes = require('./userRoutes')
 const messageRoutes = require('./messageRoutes')
 
 const app = express()
+
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, 'uploads')
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true })
+}
 
 // CORS configuration
 const corsOptions = {
@@ -27,6 +35,9 @@ app.use(cors(corsOptions))
 
 // Parse JSON bodies
 app.use(express.json())
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
@@ -70,6 +81,7 @@ const PORT = process.env.PORT || 3000
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`)
   console.log('CORS enabled for:', corsOptions.origin)
+  console.log('Uploads directory:', uploadsDir)
 })
 
 // Handle uncaught errors

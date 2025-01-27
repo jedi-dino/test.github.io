@@ -1,8 +1,41 @@
 const express = require('express')
 const jwt = require('jsonwebtoken')
+const multer = require('multer')
+const path = require('path')
+const fs = require('fs')
 const User = require('./User')
 
 const router = express.Router()
+
+// Configure multer for file upload
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = 'uploads'
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir)
+    }
+    cb(null, uploadDir)
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
+    cb(null, uniqueSuffix + path.extname(file.originalname))
+  }
+})
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true)
+    } else {
+      cb(new Error('Invalid file type. Only JPEG, PNG, GIF and WebP are allowed.'))
+    }
+  }
+})
 
 // Middleware to verify JWT token
 const authenticateToken = (req, res, next) => {
@@ -78,7 +111,8 @@ router.get('/profile', authenticateToken, async (req, res) => {
         id: user._id,
         username: user.username,
         lastActive: user.lastActive,
-        createdAt: user.createdAt
+        createdAt: user.createdAt,
+        imageUrl: user.imageUrl
       }
     })
   } catch (error) {
@@ -148,7 +182,8 @@ router.put('/update', authenticateToken, async (req, res) => {
         id: user._id,
         username: user.username,
         lastActive: user.lastActive,
-        createdAt: user.createdAt
+        createdAt: user.createdAt,
+        imageUrl: user.imageUrl
       }
     })
   } catch (error) {
@@ -156,6 +191,84 @@ router.put('/update', authenticateToken, async (req, res) => {
     res.status(500).json({
       status: 'error',
       message: 'Error updating profile'
+    })
+  }
+})
+
+// Upload profile picture
+router.put('/profile-picture', authenticateToken, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'No image file provided'
+      })
+    }
+
+    const user = await User.findById(req.user.userId)
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'User not found'
+      })
+    }
+
+    // Delete old profile picture if it exists
+    if (user.imageUrl) {
+      const oldImagePath = path.join(__dirname, '..', user.imageUrl.replace('/uploads/', 'uploads/'))
+      if (fs.existsSync(oldImagePath)) {
+        fs.unlinkSync(oldImagePath)
+      }
+    }
+
+    // Update user with new image URL
+    const imageUrl = `/uploads/${req.file.filename}`
+    user.imageUrl = imageUrl
+    await user.save()
+
+    res.json({
+      status: 'success',
+      message: 'Profile picture updated successfully',
+      imageUrl
+    })
+  } catch (error) {
+    console.error('Profile picture upload error:', error)
+    res.status(500).json({
+      status: 'error',
+      message: 'Error uploading profile picture'
+    })
+  }
+})
+
+// Remove profile picture
+router.delete('/profile-picture', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId)
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'User not found'
+      })
+    }
+
+    if (user.imageUrl) {
+      const imagePath = path.join(__dirname, '..', user.imageUrl.replace('/uploads/', 'uploads/'))
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath)
+      }
+      user.imageUrl = undefined
+      await user.save()
+    }
+
+    res.json({
+      status: 'success',
+      message: 'Profile picture removed successfully'
+    })
+  } catch (error) {
+    console.error('Profile picture removal error:', error)
+    res.status(500).json({
+      status: 'error',
+      message: 'Error removing profile picture'
     })
   }
 })
