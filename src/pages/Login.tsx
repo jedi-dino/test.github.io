@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { API_URL, ENDPOINTS } from '../config'
+import { API_URL, ENDPOINTS, fetchWithRetry } from '../config'
 
 interface LoginProps {
   onLogin: (userData: { id: string; username: string; token: string }) => void
@@ -23,24 +23,19 @@ const Login: React.FC<LoginProps> = ({ onLogin }): JSX.Element => {
     setError('')
 
     try {
-      const response = await fetch(`${API_URL}${ENDPOINTS.AUTH.LOGIN}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({ username, password })
-      })
-
-      const contentType = response.headers.get('content-type')
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Server returned invalid response format')
-      }
+      console.log('Sending request to:', `${API_URL}${ENDPOINTS.AUTH.LOGIN}`)
+      const response = await fetchWithRetry(
+        `${API_URL}${ENDPOINTS.AUTH.LOGIN}`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ username, password })
+        }
+      )
 
       const data = await response.json()
 
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to login')
+      if (!data.user || !data.user.id || !data.user.username || !data.token) {
+        throw new Error('Invalid response data from server')
       }
 
       onLogin({
@@ -49,6 +44,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }): JSX.Element => {
         token: data.token
       })
     } catch (error) {
+      console.error('Login error:', error)
       setError(error instanceof Error ? error.message : 'Failed to login')
     } finally {
       setIsLoading(false)
@@ -106,6 +102,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }): JSX.Element => {
                 id="username"
                 name="username"
                 type="text"
+                autoComplete="username"
                 required
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 focus:z-10 sm:text-sm dark:bg-gray-800"
                 placeholder="Username"
@@ -121,6 +118,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }): JSX.Element => {
                 id="password"
                 name="password"
                 type="password"
+                autoComplete="current-password"
                 required
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 focus:z-10 sm:text-sm dark:bg-gray-800"
                 placeholder="Password"

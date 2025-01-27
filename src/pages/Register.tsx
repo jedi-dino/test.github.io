@@ -55,21 +55,26 @@ const Register: React.FC<RegisterProps> = ({ onRegister }): JSX.Element => {
       const response = await fetch(`${API_URL}${ENDPOINTS.AUTH.REGISTER}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ username, password })
       })
 
-      const contentType = response.headers.get('content-type')
-      if (!contentType || !contentType.includes('application/json')) {
+      let data
+      try {
+        const text = await response.text()
+        data = JSON.parse(text)
+      } catch (parseError) {
+        console.error('Response parsing error:', parseError)
         throw new Error('Server returned invalid response format')
       }
 
-      const data = await response.json()
-
       if (!response.ok) {
         throw new Error(data.message || 'Failed to register')
+      }
+
+      if (!data.user || !data.user.id || !data.user.username || !data.token) {
+        throw new Error('Invalid response data from server')
       }
 
       onRegister({

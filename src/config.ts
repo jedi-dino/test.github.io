@@ -1,4 +1,5 @@
-export const API_URL = import.meta.env.VITE_API_URL
+const DEFAULT_API_URL = 'https://testserverprobsfail.replit.app'
+export const API_URL = import.meta.env.VITE_API_URL || DEFAULT_API_URL
 
 export const ENDPOINTS = {
   AUTH: {
@@ -75,7 +76,12 @@ export const ERROR_MESSAGES = {
 
 export const checkApiHealth = async (): Promise<boolean> => {
   try {
-    const response = await fetch(`${API_URL}/health`)
+    const response = await fetch(`${API_URL}/health`, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    })
     return response.ok
   } catch {
     return false
@@ -88,13 +94,28 @@ export const fetchWithRetry = async (
   retries = 3,
   delay = 1000
 ): Promise<Response> => {
+  const defaultHeaders = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json'
+  }
+
+  const finalOptions = {
+    ...options,
+    headers: {
+      ...defaultHeaders,
+      ...options.headers
+    }
+  }
+
   try {
-    const response = await fetch(url, options)
+    const response = await fetch(url, finalOptions)
     if (response.ok) return response
-    throw new Error(`HTTP error! status: ${response.status}`)
+    
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
   } catch (error) {
     if (retries === 0) throw error
     await new Promise(resolve => setTimeout(resolve, delay))
-    return fetchWithRetry(url, options, retries - 1, delay * 2)
+    return fetchWithRetry(url, finalOptions, retries - 1, delay * 2)
   }
 }

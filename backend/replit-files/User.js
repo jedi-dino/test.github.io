@@ -1,24 +1,18 @@
-import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
+const mongoose = require('mongoose')
 
 const userSchema = new mongoose.Schema({
   username: {
     type: String,
-    required: true,
+    required: [true, 'Username is required'],
     unique: true,
     trim: true,
-    minlength: 3,
-    maxlength: 30
+    minlength: [3, 'Username must be at least 3 characters long'],
+    maxlength: [20, 'Username cannot exceed 20 characters'],
+    match: [/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores']
   },
   password: {
     type: String,
-    required: true,
-    minlength: 6
-  },
-  profilePicture: {
-    type: String,
-    default: '', // Base64 encoded image string
-    maxlength: 5242880 // 5MB limit
+    required: [true, 'Password is required']
   },
   createdAt: {
     type: Date,
@@ -29,47 +23,53 @@ const userSchema = new mongoose.Schema({
     default: Date.now
   }
 }, {
-  timestamps: true
-});
-
-// Hash password before saving
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
+  timestamps: true,
+  toJSON: {
+    transform: function(doc, ret) {
+      ret.id = ret._id.toString()
+      delete ret._id
+      delete ret.__v
+      delete ret.password
+      return ret
+    }
   }
-});
+})
 
-// Method to compare passwords
-userSchema.methods.comparePassword = async function(candidatePassword) {
-  try {
-    return await bcrypt.compare(candidatePassword, this.password);
-  } catch (error) {
-    throw error;
+// Update lastActive timestamp before saving
+userSchema.pre('save', function(next) {
+  this.lastActive = new Date()
+  next()
+})
+
+// Custom error messages for unique fields
+userSchema.post('save', function(error, doc, next) {
+  if (error.name === 'MongoServerError' && error.code === 11000) {
+    next(new Error('Username already exists'))
+  } else {
+    next(error)
   }
-};
+})
 
-// Method to update profile picture
-userSchema.methods.updateProfilePicture = async function(base64Image) {
-  if (!base64Image) {
-    throw new Error('Profile picture is required');
-  }
+// Instance method to safely convert user to JSON
+userSchema.methods.toJSON = function() {
+  const obj = this.toObject()
+  obj.id = obj._id.toString()
+  delete obj._id
+  delete obj.__v
+  delete obj.password
+  return obj
+}
 
-  // Validate image size (5MB limit)
-  const sizeInBytes = Buffer.from(base64Image, 'base64').length;
-  if (sizeInBytes > 5242880) {
-    throw new Error('Profile picture must be less than 5MB');
-  }
+// Static method to find user by username
+userSchema.statics.findByUsername = async function(username) {
+  return this.findOne({ username })
+}
 
-  this.profilePicture = base64Image;
-  await this.save();
-};
+// Static method to validate password length
+userSchema.statics.validatePassword = function(password) {
+  return password && password.length >= 6 && password.length <= 50
+}
 
-const User = mongoose.model('User', userSchema);
+const User = mongoose.model('User', userSchema)
 
-export default User;
+module.exports = User

@@ -1,134 +1,88 @@
-import express from 'express';
-import mongoose from 'mongoose';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import authRoutes from './authRoutes.js';
-import userRoutes from './userRoutes.js';
-import messageRoutes from './messageRoutes.js';
+require('dotenv').config()
+const express = require('express')
+const cors = require('cors')
+const mongoose = require('mongoose')
+const authRoutes = require('./authRoutes')
+const userRoutes = require('./userRoutes')
+const messageRoutes = require('./messageRoutes')
 
-// Load environment variables
-dotenv.config();
+const app = express()
 
-const app = express();
-
-// CORS configuration
-const corsOptions = {
-  origin: [
-    'http://localhost:3005',
-    'http://localhost:5173',
-    'http://localhost:3005/chat-app',
-    'https://testserverprobsfail.replit.app',
-    'https://chat-app.samue.repl.co',
-    'https://iwbms.github.io',
-    'https://jedi-dino.github.io'
-  ],
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin'],
-  exposedHeaders: ['Content-Type', 'Authorization'],
-  credentials: false,
-  preflightContinue: false,
-  optionsSuccessStatus: 204
-};
-
-// Middleware
-app.use(cors(corsOptions));
-app.use(express.json());
-
-// Request logging middleware
+// CORS middleware
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-  console.log('Request headers:', req.headers);
-  console.log('Request body:', req.body);
+  // Allow requests from localhost during development
+  const allowedOrigins = ['http://localhost:5174', 'http://localhost:5173', 'https://test.github.io']
+  const origin = req.headers.origin
   
-  // Log CORS-related information
-  console.log('Origin:', req.headers.origin);
-  console.log('Access-Control-Request-Method:', req.headers['access-control-request-method']);
-  console.log('Access-Control-Request-Headers:', req.headers['access-control-request-headers']);
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+  }
   
-  next();
-});
-
-// Add response headers middleware
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (corsOptions.origin.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Origin');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  res.setHeader('Access-Control-Allow-Credentials', 'true')
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end()
   }
-  next();
-});
+  
+  next()
+})
 
-// Handle preflight requests
-app.options('*', (req, res) => {
-  const origin = req.headers.origin;
-  if (corsOptions.origin.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Origin');
-    res.status(204).send();
-  } else {
-    console.log('Blocked CORS request from:', origin);
-    res.status(403).send();
-  }
-});
+// Parse JSON bodies
+app.use(express.json())
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => {
-    console.log('Connected to MongoDB');
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => {
+    console.error('MongoDB connection error:', err)
+    process.exit(1)
   })
-  .catch((error) => {
-    console.error('MongoDB connection error:', error);
-    process.exit(1);
-  });
 
 // Health check endpoint
-app.get('/', (req, res) => {
-  res.json({ 
-    message: 'Chat App API is running',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV
-  });
-});
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() })
+})
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/messages', messageRoutes);
+// API routes
+app.use('/api/auth', authRoutes)
+app.use('/api/users', userRoutes)
+app.use('/api/messages', messageRoutes)
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(500).json({ 
-    message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
-  });
-});
+  console.error('Error:', err)
+  res.status(500).json({
+    status: 'error',
+    message: process.env.NODE_ENV === 'production' 
+      ? 'Something went wrong!' 
+      : err.message
+  })
+})
 
-// Handle 404s
+// 404 handler
 app.use((req, res) => {
-  console.log(`404 - Not Found: ${req.method} ${req.path}`);
-  res.status(404).json({ message: 'Not Found' });
-});
+  res.status(404).json({
+    status: 'error',
+    message: 'Not found'
+  })
+})
 
-// Start server
-const PORT = process.env.PORT || 443;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log('Environment:', process.env.NODE_ENV);
-  console.log('MongoDB URI:', process.env.MONGODB_URI?.substring(0, 20) + '...');
-  console.log('CORS origins:', corsOptions.origin);
-});
+const PORT = process.env.PORT || 3000
 
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
-  process.exit(1);
-});
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`)
+  console.log('CORS enabled for:', ['http://localhost:5174', 'http://localhost:5173', 'https://test.github.io'])
+})
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (error) => {
-  console.error('Unhandled Rejection:', error);
-  process.exit(1);
-});
+// Handle uncaught errors
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled promise rejection:', err)
+})
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err)
+  process.exit(1)
+})
