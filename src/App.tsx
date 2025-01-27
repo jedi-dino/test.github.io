@@ -10,6 +10,7 @@ interface User {
   id: string
   username: string
   token: string
+  imageUrl?: string | null
 }
 
 const App: React.FC = (): JSX.Element => {

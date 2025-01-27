@@ -50,7 +50,8 @@ router.post('/register', async (req, res) => {
       message: 'User created successfully',
       user: {
         id: user._id.toString(),
-        username: user.username
+        username: user.username,
+        imageUrl: user.imageUrl
       },
       token
     })
@@ -104,7 +105,8 @@ router.post('/login', async (req, res) => {
       message: 'Login successful',
       user: {
         id: user._id.toString(),
-        username: user.username
+        username: user.username,
+        imageUrl: user.imageUrl
       },
       token
     })
