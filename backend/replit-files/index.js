@@ -37,7 +37,7 @@ app.use(cors(corsOptions))
 app.use(express.json())
 
 // Serve static files from uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
+app.use('/api/users/uploads', express.static(path.join(__dirname, 'uploads')))
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)

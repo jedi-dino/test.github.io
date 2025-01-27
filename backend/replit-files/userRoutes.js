@@ -10,9 +10,9 @@ const router = express.Router()
 // Configure multer for file upload
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = 'uploads'
+    const uploadDir = path.join(__dirname, 'uploads')
     if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir)
+      fs.mkdirSync(uploadDir, { recursive: true })
     }
     cb(null, uploadDir)
   },
@@ -222,7 +222,7 @@ router.put('/profile-picture', authenticateToken, upload.single('image'), async 
     }
 
     // Update user with new image URL
-    const imageUrl = `/uploads/${req.file.filename}`
+    const imageUrl = `/api/users/uploads/${req.file.filename}`
     user.imageUrl = imageUrl
     await user.save()
 
