@@ -147,7 +147,7 @@ router.put('/update', authenticateToken, async (req, res) => {
 
       // Check if username is already taken
       const existingUser = await User.findOne({ 
-        username, 
+        username: username.toLowerCase(), 
         _id: { $ne: req.user.userId }
       })
       

@@ -23,7 +23,7 @@ router.post('/register', async (req, res) => {
       })
     }
 
-    const existingUser = await User.findOne({ username })
+    const existingUser = await User.findOne({ username: username.toLowerCase() })
     if (existingUser) {
       return res.status(400).json({
         status: 'error',
@@ -78,7 +78,7 @@ router.post('/login', async (req, res) => {
       })
     }
 
-    const user = await User.findOne({ username })
+    const user = await User.findOne({ username: username.toLowerCase() })
     if (!user) {
       return res.status(401).json({
         status: 'error',
