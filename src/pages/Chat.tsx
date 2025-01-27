@@ -1,9 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import UserSearch from '../components/UserSearch'
 import UserMenu from '../components/UserMenu'
 import RecentChats from '../components/RecentChats'
 import VideoPlayer from '../components/VideoPlayer'
 import ThemeToggle from '../components/ThemeToggle'
+import NotificationHandler, { showNotification } from '../components/NotificationHandler'
 import { API_URL, ENDPOINTS } from '../config'
 
 interface Message {
@@ -44,11 +45,13 @@ const Chat: React.FC<ChatProps> = ({ user, onLogout }): JSX.Element => {
   const [isSearching, setIsSearching] = useState(false)
   const [selectedMedia, setSelectedMedia] = useState<File | null>(null)
   const [mediaPreview, setMediaPreview] = useState<string>('')
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isLoading, setIsLoading] = useState(false)
   const pollInterval = useRef<number | null>(null)
   const isInitialLoad = useRef(true)
+  const previousMessagesLength = useRef(0)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -89,6 +92,30 @@ const Chat: React.FC<ChatProps> = ({ user, onLogout }): JSX.Element => {
       }
     }
   }, [selectedUser])
+
+  useEffect(() => {
+    // Check for new messages and show notifications
+    if (messages.length > previousMessagesLength.current) {
+      const newMessages = messages.slice(previousMessagesLength.current)
+      newMessages.forEach(message => {
+        if (message.sender._id !== user.id && !document.hasFocus()) {
+          showNotification(
+            `New message from ${message.sender.username}`,
+            {
+              body: message.content || (message.mediaType ? `Sent a ${message.mediaType}` : ''),
+              tag: `message-${message._id}`, // Prevent duplicate notifications
+              requireInteraction: true // Keep notification visible until user interacts with it
+            }
+          )
+        }
+      })
+    }
+    previousMessagesLength.current = messages.length
+  }, [messages, user.id])
+
+  const handlePermissionChange = useCallback((permission: NotificationPermission) => {
+    setNotificationPermission(permission)
+  }, [])
 
   const fetchMessages = async () => {
     if (!selectedUser) return
@@ -262,6 +289,7 @@ const Chat: React.FC<ChatProps> = ({ user, onLogout }): JSX.Element => {
 
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
+      <NotificationHandler onPermissionChange={handlePermissionChange} />
       {/* Sidebar */}
       <div className="w-1/3 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
         {/* Sidebar Header */}
