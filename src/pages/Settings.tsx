@@ -170,14 +170,14 @@ const Settings: React.FC<SettingsProps> = ({ user, onLogout, onUpdateUser }): JS
                   <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Username
                   </label>
-                  <div className="mt-1">
+                  <div className="mt-1 max-w-md">
                     <input
                       type="text"
                       name="username"
                       id="username"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                      className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
                       autoComplete="username"
                     />
                   </div>
@@ -197,18 +197,26 @@ const Settings: React.FC<SettingsProps> = ({ user, onLogout, onUpdateUser }): JS
               <div className="mt-8">
                 <h4 className="text-lg font-medium text-gray-900 dark:text-white">Change Password</h4>
                 <form onSubmit={handleChangePassword} className="mt-4 space-y-6">
+                  <input
+                    type="text"
+                    name="username"
+                    autoComplete="username"
+                    value={user.username}
+                    className="hidden"
+                    readOnly
+                  />
                   <div>
                     <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Current Password
                     </label>
-                    <div className="mt-1">
+                    <div className="mt-1 max-w-md">
                       <input
                         type="password"
                         name="currentPassword"
                         id="currentPassword"
                         value={currentPassword}
                         onChange={(e) => setCurrentPassword(e.target.value)}
-                        className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                        className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
                         autoComplete="current-password"
                       />
                     </div>
@@ -218,14 +226,14 @@ const Settings: React.FC<SettingsProps> = ({ user, onLogout, onUpdateUser }): JS
                     <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       New Password
                     </label>
-                    <div className="mt-1">
+                    <div className="mt-1 max-w-md">
                       <input
                         type="password"
                         name="newPassword"
                         id="newPassword"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                        className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
                         autoComplete="new-password"
                       />
                     </div>
@@ -235,14 +243,14 @@ const Settings: React.FC<SettingsProps> = ({ user, onLogout, onUpdateUser }): JS
                     <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Confirm New Password
                     </label>
-                    <div className="mt-1">
+                    <div className="mt-1 max-w-md">
                       <input
                         type="password"
                         name="confirmPassword"
                         id="confirmPassword"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                        className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full text-base border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
                         autoComplete="new-password"
                       />
                     </div>
