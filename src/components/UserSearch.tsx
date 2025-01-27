@@ -5,10 +5,11 @@ import ProfilePicture from './ProfilePicture'
 interface User {
   id: string
   username: string
+  imageUrl?: string
 }
 
 interface UserSearchProps {
-  onSelectUser: (user: { id: string; username: string }) => void
+  onSelectUser: (user: { id: string; username: string; imageUrl?: string }) => void
   currentUserId: string
   token: string
 }
@@ -88,7 +89,11 @@ const UserSearch: React.FC<UserSearchProps> = ({ onSelectUser, currentUserId, to
             onClick={() => onSelectUser(user)}
             className="w-full flex items-center p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
-            <ProfilePicture username={user.username} size="sm" />
+            <ProfilePicture 
+              username={user.username} 
+              imageUrl={user.imageUrl ? `${API_URL}${user.imageUrl}` : undefined}
+              size="sm" 
+            />
             <span className="ml-3 text-gray-900 dark:text-white">
               {user.username}
             </span>

@@ -6,6 +6,7 @@ interface ChatUser {
   id: string
   username: string
   lastActive?: string
+  imageUrl?: string
 }
 
 interface LastMessage {
@@ -21,6 +22,7 @@ interface RecentChat {
   id: string
   username: string
   lastActive: string
+  imageUrl?: string
   lastMessage: LastMessage
 }
 
@@ -148,7 +150,8 @@ const RecentChats: React.FC<RecentChatsProps> = ({
             onClick={() => onSelectUser({
               id: chat.id,
               username: chat.username,
-              lastActive: chat.lastActive
+              lastActive: chat.lastActive,
+              imageUrl: chat.imageUrl
             })}
             className={`w-full flex items-center p-3 rounded-lg transition-colors ${
               chat.id === selectedUserId
@@ -157,7 +160,11 @@ const RecentChats: React.FC<RecentChatsProps> = ({
             }`}
           >
             <div className="relative">
-              <ProfilePicture username={chat.username} size="md" />
+              <ProfilePicture 
+                username={chat.username} 
+                imageUrl={chat.imageUrl ? `${API_URL}${chat.imageUrl}` : undefined}
+                size="md" 
+              />
               {unreadCount > 0 && (
                 <div className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                   {unreadCount}

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { API_URL } from '../config'
 import ProfilePicture from './ProfilePicture'
 
 interface UserMenuProps {
@@ -7,6 +8,7 @@ interface UserMenuProps {
     id: string
     username: string
     token: string
+    imageUrl?: string
   }
   onLogout: () => void
 }
@@ -34,7 +36,11 @@ const UserMenu: React.FC<UserMenuProps> = ({ user, onLogout }): JSX.Element => {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center space-x-2 focus:outline-none"
       >
-        <ProfilePicture username={user.username} size="sm" />
+        <ProfilePicture 
+          username={user.username} 
+          imageUrl={user.imageUrl ? `${API_URL}${user.imageUrl}` : undefined}
+          size="sm" 
+        />
         <span className="text-gray-700 dark:text-gray-200">{user.username}</span>
         <svg
           className={`w-5 h-5 text-gray-400 transition-transform ${

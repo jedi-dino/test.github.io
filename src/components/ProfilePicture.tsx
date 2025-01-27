@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 
 interface ProfilePictureProps {
   username: string
@@ -8,6 +8,8 @@ interface ProfilePictureProps {
 }
 
 const ProfilePicture: React.FC<ProfilePictureProps> = ({ username, imageUrl, size = 'md', className = '' }) => {
+  const [imageError, setImageError] = useState(false)
+
   const getColor = (str: string) => {
     let hash = 0
     for (let i = 0; i < str.length; i++) {
@@ -27,19 +29,7 @@ const ProfilePicture: React.FC<ProfilePictureProps> = ({ username, imageUrl, siz
     lg: 'w-12 h-12 text-lg'
   }
 
-  if (imageUrl) {
-    return (
-      <div className={`${sizeClasses[size]} ${className} rounded-full overflow-hidden`}>
-        <img 
-          src={imageUrl} 
-          alt={`${username}'s profile`}
-          className="w-full h-full object-cover"
-        />
-      </div>
-    )
-  }
-
-  return (
+  const renderFallback = () => (
     <div
       className={`flex items-center justify-center rounded-full font-semibold text-white ${sizeClasses[size]} ${className}`}
       style={{ backgroundColor: getColor(username) }}
@@ -47,6 +37,21 @@ const ProfilePicture: React.FC<ProfilePictureProps> = ({ username, imageUrl, siz
       {getInitials(username)}
     </div>
   )
+
+  if (imageUrl && !imageError) {
+    return (
+      <div className={`${sizeClasses[size]} ${className} rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800`}>
+        <img 
+          src={imageUrl}
+          alt={`${username}'s profile`}
+          className="w-full h-full object-cover"
+          onError={() => setImageError(true)}
+        />
+      </div>
+    )
+  }
+
+  return renderFallback()
 }
 
 export default ProfilePicture

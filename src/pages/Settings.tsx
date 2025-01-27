@@ -131,7 +131,11 @@ const Settings: React.FC<SettingsProps> = ({ user, onLogout, onUpdateUser }): JS
           <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
             <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
               <div className="flex items-center">
-                <ProfilePicture username={user.username} size="lg" />
+                <ProfilePicture 
+                  username={user.username} 
+                  imageUrl={user.imageUrl ? `${API_URL}${user.imageUrl}` : undefined}
+                  size="lg" 
+                />
                 <h3 className="ml-4 text-lg leading-6 font-medium text-gray-900 dark:text-white">
                   Account Settings
                 </h3>
@@ -169,7 +173,12 @@ const Settings: React.FC<SettingsProps> = ({ user, onLogout, onUpdateUser }): JS
               <div className="mb-8">
                 <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Profile Picture</h4>
                 <div className="flex items-center space-x-6">
-                  <ProfilePicture username={user.username} imageUrl={user.imageUrl} size="lg" className="w-20 h-20" />
+                  <ProfilePicture 
+                    username={user.username} 
+                    imageUrl={user.imageUrl ? `${API_URL}${user.imageUrl}` : undefined}
+                    size="lg" 
+                    className="w-20 h-20" 
+                  />
                   <div>
                     <label
                       htmlFor="profile-upload"
