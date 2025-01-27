@@ -1,159 +1,68 @@
-import mongoose from 'mongoose';
+const mongoose = require('mongoose')
 
 const messageSchema = new mongoose.Schema({
   sender: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: [true, 'Sender is required']
   },
   recipient: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: [true, 'Recipient is required']
   },
   content: {
     type: String,
-    trim: true,
-    maxlength: 1000
-  },
-  mediaType: {
-    type: String,
-    enum: ['image', 'video', null],
-    default: null
-  },
-  mediaUrl: {
-    type: String,
-    default: null
+    required: [true, 'Message content is required'],
+    maxlength: [1000, 'Message content cannot exceed 1000 characters']
   },
   read: {
     type: Boolean,
     default: false
-  },
-  readAt: {
-    type: Date,
-    default: null
   }
 }, {
-  timestamps: true
-});
-
-// Index for efficient querying of conversations
-messageSchema.index({ sender: 1, recipient: 1, createdAt: -1 });
-
-// Method to mark message as read
-messageSchema.methods.markAsRead = async function() {
-  if (!this.read) {
-    this.read = true;
-    this.readAt = new Date();
-    await this.save();
+  timestamps: true,
+  toJSON: {
+    transform: function(doc, ret) {
+      ret.id = ret._id.toString()
+      delete ret._id
+      delete ret.__v
+      return ret
+    }
   }
-};
+})
 
-// Static method to get conversation between two users
-messageSchema.statics.getConversation = async function(user1Id, user2Id, limit = 50, skip = 0) {
+// Instance method to safely convert message to JSON
+messageSchema.methods.toJSON = function() {
+  const obj = this.toObject()
+  obj.id = obj._id.toString()
+  delete obj._id
+  delete obj.__v
+  return obj
+}
+
+// Static method to find messages between users
+messageSchema.statics.findBetweenUsers = async function(user1Id, user2Id) {
   return this.find({
     $or: [
       { sender: user1Id, recipient: user2Id },
       { sender: user2Id, recipient: user1Id }
     ]
-  })
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit)
-    .populate('sender', 'username')
-    .populate('recipient', 'username');
-};
+  }).sort({ createdAt: 1 })
+}
 
-// Static method to get recent conversations for a user
-messageSchema.statics.getRecentConversations = async function(userId) {
-  try {
-    // Convert string ID to ObjectId
-    const userObjectId = new mongoose.Types.ObjectId(userId.toString());
+// Static method to mark messages as read
+messageSchema.statics.markAsRead = async function(senderId, recipientId) {
+  return this.updateMany(
+    {
+      sender: senderId,
+      recipient: recipientId,
+      read: false
+    },
+    { read: true }
+  )
+}
 
-    const conversations = await this.aggregate([
-      {
-        $match: {
-          $or: [{ sender: userObjectId }, { recipient: userObjectId }]
-        }
-      },
-      {
-        $sort: { createdAt: -1 }
-      },
-      {
-        $group: {
-          _id: {
-            $cond: [
-              { $eq: ['$sender', userObjectId] },
-              '$recipient',
-              '$sender'
-            ]
-          },
-          lastMessage: { $first: '$$ROOT' },
-          unreadCount: {
-            $sum: {
-              $cond: [
-                {
-                  $and: [
-                    { $eq: ['$recipient', userObjectId] },
-                    { $eq: ['$read', false] }
-                  ]
-                },
-                1,
-                0
-              ]
-            }
-          }
-        }
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'user'
-        }
-      },
-      {
-        $unwind: {
-          path: '$user',
-          preserveNullAndEmptyArrays: true
-        }
-      },
-      {
-        $match: {
-          user: { $ne: null }
-        }
-      },
-      {
-        $project: {
-          user: { 
-            _id: 1, 
-            username: 1,
-            profilePicture: 1
-          },
-          lastMessage: {
-            _id: 1,
-            content: 1,
-            mediaType: 1,
-            mediaUrl: 1,
-            createdAt: 1,
-            read: 1
-          },
-          unreadCount: 1
-        }
-      },
-      {
-        $sort: { 'lastMessage.createdAt': -1 }
-      }
-    ]);
+const Message = mongoose.model('Message', messageSchema)
 
-    return conversations;
-  } catch (error) {
-    console.error('Error in getRecentConversations:', error);
-    throw error;
-  }
-};
-
-const Message = mongoose.model('Message', messageSchema);
-
-export default Message;
+module.exports = Message

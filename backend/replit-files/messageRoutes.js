@@ -1,193 +1,208 @@
-import express from 'express';
-import { auth } from './auth.js';
-import Message from './Message.js';
-import mongoose from 'mongoose';
+const express = require('express')
+const jwt = require('jsonwebtoken')
+const Message = require('./Message')
+const User = require('./User')
 
-const router = express.Router();
+const router = express.Router()
 
-// Get recent conversations
-router.get('/recent', auth, async (req, res) => {
-  try {
-    const messages = await Message.aggregate([
-      {
-        $match: {
-          $or: [
-            { sender: req.user._id },
-            { recipient: req.user._id }
-          ]
-        }
-      },
-      {
-        $sort: { createdAt: -1 }
-      },
-      {
-        $group: {
-          _id: {
-            $cond: [
-              { $eq: ['$sender', req.user._id] },
-              '$recipient',
-              '$sender'
-            ]
-          },
-          lastMessage: { $first: '$$ROOT' },
-          unreadCount: {
-            $sum: {
-              $cond: [
-                {
-                  $and: [
-                    { $eq: ['$recipient', req.user._id] },
-                    { $eq: ['$read', false] }
-                  ]
-                },
-                1,
-                0
-              ]
-            }
-          }
-        }
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'user'
-        }
-      },
-      {
-        $unwind: '$user'
-      },
-      {
-        $project: {
-          _id: 0,
-          user: {
-            _id: '$user._id',
-            username: '$user.username',
-            profilePicture: '$user.profilePicture'
-          },
-          lastMessage: 1,
-          unreadCount: 1
-        }
-      },
-      {
-        $sort: { 'lastMessage.createdAt': -1 }
-      }
-    ]);
+// Middleware to verify JWT token
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization']
+  const token = authHeader && authHeader.split(' ')[1]
 
-    res.json(messages);
-  } catch (error) {
-    console.error('Get recent messages error:', error);
-    res.status(500).json({ message: 'Error getting recent messages' });
-  }
-});
-
-// Get chat history with a user
-router.get('/:userId', auth, async (req, res) => {
-  try {
-    const messages = await Message.find({
-      $or: [
-        { sender: req.user._id, recipient: req.params.userId },
-        { sender: req.params.userId, recipient: req.user._id }
-      ]
+  if (!token) {
+    return res.status(401).json({
+      status: 'error',
+      message: 'Authentication token required'
     })
-    .sort({ createdAt: -1 })
-    .limit(50);
-
-    // Mark messages as read
-    await Message.updateMany(
-      {
-        sender: req.params.userId,
-        recipient: req.user._id,
-        read: false
-      },
-      { read: true }
-    );
-
-    res.json(messages.reverse());
-  } catch (error) {
-    console.error('Get messages error:', error);
-    res.status(500).json({ message: 'Error getting messages' });
   }
-});
+
+  jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key', (err, user) => {
+    if (err) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Invalid or expired token'
+      })
+    }
+    req.user = user
+    next()
+  })
+}
 
 // Send a message
-router.post('/', auth, async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { recipientId, content, media } = req.body;
+    const { recipientId, content } = req.body
 
-    // Validate that at least content or media is provided
-    if (!content?.trim() && !media) {
-      return res.status(400).json({ message: 'Message content or media is required' });
+    if (!recipientId || !content) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Recipient ID and content are required'
+      })
     }
 
-    // Validate media if provided
-    let mediaType = null;
-    let mediaUrl = null;
+    if (content.length > 1000) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Message content cannot exceed 1000 characters'
+      })
+    }
 
-    if (media) {
-      // Check media type from base64 data
-      if (media.startsWith('data:image/')) {
-        mediaType = 'image';
-      } else if (media.startsWith('data:video/')) {
-        mediaType = 'video';
-      } else {
-        return res.status(400).json({ message: 'Invalid media format. Must be image or video.' });
-      }
-
-      // Store the base64 media data
-      mediaUrl = media;
+    const recipient = await User.findById(recipientId)
+    if (!recipient) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Recipient not found'
+      })
     }
 
     const message = new Message({
-      sender: req.user._id,
+      sender: req.user.userId,
       recipient: recipientId,
-      content: content?.trim() || '',
-      mediaType,
-      mediaUrl,
+      content,
       read: false
-    });
+    })
 
-    await message.save();
-    res.status(201).json(message);
+    await message.save()
+
+    res.status(201).json({
+      status: 'success',
+      message: {
+        id: message._id,
+        content: message.content,
+        sender: req.user.userId,
+        recipient: recipientId,
+        read: message.read,
+        createdAt: message.createdAt
+      }
+    })
   } catch (error) {
-    console.error('Send message error:', error);
-    res.status(500).json({ message: 'Error sending message' });
+    console.error('Message send error:', error)
+    res.status(500).json({
+      status: 'error',
+      message: 'Error sending message'
+    })
   }
-});
+})
 
-// Delete conversation with a user
-router.delete('/:userId', auth, async (req, res) => {
+// Get messages with a specific user
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    // Convert string IDs to ObjectIds
-    const userId = new mongoose.Types.ObjectId(req.params.userId);
-    const currentUserId = new mongoose.Types.ObjectId(req.user._id);
-
-    console.log('Deleting messages between:', {
-      currentUserId: currentUserId.toString(),
-      userId: userId.toString()
-    });
-
-    const result = await Message.deleteMany({
-      $or: [
-        { sender: currentUserId, recipient: userId },
-        { sender: userId, recipient: currentUserId }
-      ]
-    });
-
-    console.log('Delete result:', result);
-
-    if (result.deletedCount === 0) {
-      return res.status(404).json({ message: 'No messages found to delete' });
+    const { userId } = req.query
+    if (!userId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'User ID is required'
+      })
     }
 
-    res.json({ 
-      message: 'Conversation deleted successfully',
-      deletedCount: result.deletedCount
-    });
-  } catch (error) {
-    console.error('Delete conversation error:', error);
-    res.status(500).json({ message: 'Error deleting conversation' });
-  }
-});
+    const messages = await Message.find({
+      $or: [
+        { sender: req.user.userId, recipient: userId },
+        { sender: userId, recipient: req.user.userId }
+      ]
+    }).sort({ createdAt: 1 })
 
-export default router;
+    res.json({
+      status: 'success',
+      messages: messages.map(msg => ({
+        id: msg._id,
+        content: msg.content,
+        sender: msg.sender,
+        recipient: msg.recipient,
+        read: msg.read,
+        createdAt: msg.createdAt
+      }))
+    })
+  } catch (error) {
+    console.error('Message fetch error:', error)
+    res.status(500).json({
+      status: 'error',
+      message: 'Error fetching messages'
+    })
+  }
+})
+
+// Get recent chats
+router.get('/recent/chats', authenticateToken, async (req, res) => {
+  try {
+    const messages = await Message.find({
+      $or: [
+        { sender: req.user.userId },
+        { recipient: req.user.userId }
+      ]
+    })
+    .sort({ createdAt: -1 })
+    .populate('sender recipient', 'username lastActive')
+
+    // Get unique users from messages
+    const userMap = new Map()
+    messages.forEach(msg => {
+      const otherUser = msg.sender._id.toString() === req.user.userId 
+        ? msg.recipient 
+        : msg.sender
+
+      if (!userMap.has(otherUser._id.toString())) {
+        userMap.set(otherUser._id.toString(), {
+          id: otherUser._id,
+          username: otherUser.username,
+          lastActive: otherUser.lastActive,
+          lastMessage: {
+            id: msg._id,
+            content: msg.content,
+            sender: msg.sender._id,
+            recipient: msg.recipient._id,
+            read: msg.read,
+            createdAt: msg.createdAt
+          }
+        })
+      }
+    })
+
+    res.json({
+      status: 'success',
+      chats: Array.from(userMap.values())
+    })
+  } catch (error) {
+    console.error('Recent chats fetch error:', error)
+    res.status(500).json({
+      status: 'error',
+      message: 'Error fetching recent chats'
+    })
+  }
+})
+
+// Mark messages as read
+router.post('/read', authenticateToken, async (req, res) => {
+  try {
+    const { senderId } = req.body
+    if (!senderId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Sender ID is required'
+      })
+    }
+
+    await Message.updateMany(
+      {
+        sender: senderId,
+        recipient: req.user.userId,
+        read: false
+      },
+      { read: true }
+    )
+
+    res.json({
+      status: 'success',
+      message: 'Messages marked as read'
+    })
+  } catch (error) {
+    console.error('Mark messages read error:', error)
+    res.status(500).json({
+      status: 'error',
+      message: 'Error marking messages as read'
+    })
+  }
+})
+
+module.exports = router

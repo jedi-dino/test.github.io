@@ -5,16 +5,23 @@ import ProfilePicture from './ProfilePicture'
 interface ChatUser {
   id: string
   username: string
+  lastActive?: string
+}
+
+interface LastMessage {
+  id: string
+  content: string
+  sender: string
+  recipient: string
+  read: boolean
+  createdAt: string
 }
 
 interface RecentChat {
-  user: ChatUser
-  lastMessage: {
-    content: string
-    createdAt: string
-    mediaType: 'image' | 'video' | null
-  }
-  unreadCount: number
+  id: string
+  username: string
+  lastActive: string
+  lastMessage: LastMessage
 }
 
 interface RecentChatsProps {
@@ -51,7 +58,11 @@ const RecentChats: React.FC<RecentChatsProps> = ({
       }
 
       const data = await response.json()
-      setRecentChats(data)
+      if (data.status === 'success' && Array.isArray(data.chats)) {
+        setRecentChats(data.chats)
+      } else {
+        setRecentChats([])
+      }
     } catch (error) {
       setError('Failed to load recent chats')
       console.error('Error fetching recent chats:', error)
@@ -67,12 +78,7 @@ const RecentChats: React.FC<RecentChatsProps> = ({
   }, [token])
 
   const formatLastMessage = (chat: RecentChat) => {
-    if (chat.lastMessage.mediaType === 'image') {
-      return '📷 Image'
-    } else if (chat.lastMessage.mediaType === 'video') {
-      return '🎥 Video'
-    }
-    return chat.lastMessage.content
+    return chat.lastMessage?.content || 'No messages yet'
   }
 
   const formatTimestamp = (timestamp: string) => {
@@ -122,7 +128,7 @@ const RecentChats: React.FC<RecentChatsProps> = ({
     )
   }
 
-  if (recentChats.length === 0) {
+  if (!Array.isArray(recentChats) || recentChats.length === 0) {
     return (
       <div className="p-4 text-center text-gray-500 dark:text-gray-400">
         No recent chats
@@ -132,51 +138,60 @@ const RecentChats: React.FC<RecentChatsProps> = ({
 
   return (
     <div className="space-y-1">
-      {recentChats.map((chat) => (
-        <button
-          key={chat.user.id}
-          onClick={() => onSelectUser(chat.user)}
-          className={`w-full flex items-center p-3 rounded-lg transition-colors ${
-            chat.user.id === selectedUserId
-              ? 'bg-blue-50 dark:bg-blue-900/20'
-              : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-          }`}
-        >
-          <div className="relative">
-            <ProfilePicture username={chat.user.username} size="md" />
-            {chat.unreadCount > 0 && (
-              <div className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                {chat.unreadCount}
+      {recentChats.map((chat) => {
+        const unreadCount = chat.lastMessage && !chat.lastMessage.read && 
+          chat.lastMessage.sender !== currentUserId ? 1 : 0
+
+        return (
+          <button
+            key={chat.id}
+            onClick={() => onSelectUser({
+              id: chat.id,
+              username: chat.username,
+              lastActive: chat.lastActive
+            })}
+            className={`w-full flex items-center p-3 rounded-lg transition-colors ${
+              chat.id === selectedUserId
+                ? 'bg-blue-50 dark:bg-blue-900/20'
+                : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+          >
+            <div className="relative">
+              <ProfilePicture username={chat.username} size="md" />
+              {unreadCount > 0 && (
+                <div className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {unreadCount}
+                </div>
+              )}
+            </div>
+            <div className="ml-3 flex-1 text-left">
+              <div className="flex justify-between items-baseline">
+                <span
+                  className={`font-medium ${
+                    unreadCount > 0
+                      ? 'text-gray-900 dark:text-white'
+                      : 'text-gray-700 dark:text-gray-200'
+                  }`}
+                >
+                  {chat.username}
+                </span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {chat.lastMessage ? formatTimestamp(chat.lastMessage.createdAt) : 'Never'}
+                </span>
               </div>
-            )}
-          </div>
-          <div className="ml-3 flex-1 text-left">
-            <div className="flex justify-between items-baseline">
-              <span
-                className={`font-medium ${
-                  chat.unreadCount > 0
-                    ? 'text-gray-900 dark:text-white'
-                    : 'text-gray-700 dark:text-gray-200'
+              <p
+                className={`text-sm truncate ${
+                  unreadCount > 0
+                    ? 'text-gray-900 dark:text-white font-medium'
+                    : 'text-gray-500 dark:text-gray-400'
                 }`}
               >
-                {chat.user.username}
-              </span>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {formatTimestamp(chat.lastMessage.createdAt)}
-              </span>
+                {formatLastMessage(chat)}
+              </p>
             </div>
-            <p
-              className={`text-sm truncate ${
-                chat.unreadCount > 0
-                  ? 'text-gray-900 dark:text-white font-medium'
-                  : 'text-gray-500 dark:text-gray-400'
-              }`}
-            >
-              {formatLastMessage(chat)}
-            </p>
-          </div>
-        </button>
-      ))}
+          </button>
+        )
+      })}
     </div>
   )
 }

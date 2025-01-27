@@ -33,7 +33,7 @@ const UserSearch: React.FC<UserSearchProps> = ({ onSelectUser, currentUserId, to
 
     try {
       const response = await fetch(
-        `${API_URL}${ENDPOINTS.USERS.SEARCH}?term=${encodeURIComponent(term)}`,
+        `${API_URL}${ENDPOINTS.USERS.SEARCH}?query=${encodeURIComponent(term)}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -47,7 +47,11 @@ const UserSearch: React.FC<UserSearchProps> = ({ onSelectUser, currentUserId, to
       }
 
       const data = await response.json()
-      setUsers(data.filter((user: User) => user.id !== currentUserId))
+      if (data.status === 'success' && Array.isArray(data.users)) {
+        setUsers(data.users.filter((user: User) => user.id !== currentUserId))
+      } else {
+        setUsers([])
+      }
     } catch (error) {
       setError('Failed to search users')
       console.error('Error searching users:', error)

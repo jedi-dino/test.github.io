@@ -10,8 +10,13 @@ const app = express()
 
 // CORS middleware
 app.use((req, res, next) => {
-  // Allow requests from localhost during development
-  const allowedOrigins = ['http://localhost:5174', 'http://localhost:5173', 'https://test.github.io']
+  // Allow requests from localhost during development and production domains
+  const allowedOrigins = [
+    'http://localhost:5174',
+    'http://localhost:5173',
+    'https://test.github.io',
+    'https://jedi-dino.github.io'
+  ]
   const origin = req.headers.origin
   
   if (allowedOrigins.includes(origin)) {
@@ -74,7 +79,12 @@ const PORT = process.env.PORT || 3000
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`)
-  console.log('CORS enabled for:', ['http://localhost:5174', 'http://localhost:5173', 'https://test.github.io'])
+  console.log('CORS enabled for:', [
+    'http://localhost:5174',
+    'http://localhost:5173',
+    'https://test.github.io',
+    'https://jedi-dino.github.io'
+  ])
 })
 
 // Handle uncaught errors

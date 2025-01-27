@@ -1,130 +1,163 @@
-import express from 'express';
-import { auth } from './auth.js';
-import User from './User.js';
-import bcrypt from 'bcryptjs';
+const express = require('express')
+const jwt = require('jsonwebtoken')
+const User = require('./User')
 
-const router = express.Router();
+const router = express.Router()
+
+// Middleware to verify JWT token
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization']
+  const token = authHeader && authHeader.split(' ')[1]
+
+  if (!token) {
+    return res.status(401).json({
+      status: 'error',
+      message: 'Authentication token required'
+    })
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key', (err, user) => {
+    if (err) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Invalid or expired token'
+      })
+    }
+    req.user = user
+    next()
+  })
+}
 
 // Search users
-router.get('/search', auth, async (req, res) => {
+router.get('/search', authenticateToken, async (req, res) => {
   try {
-    const { query = '' } = req.query;
-    
-    // Search for users by username, excluding the current user
-    const users = await User.find({
-      _id: { $ne: req.user._id },
-      ...(query ? {
-        username: { 
-          $regex: query,
-          $options: 'i'
-        }
-      } : {})
-    })
-    .select('username lastActive profilePicture')
-    .limit(10);
+    const { query } = req.query
+    if (!query) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Search query is required'
+      })
+    }
 
-    res.json(users);
+    const users = await User.find({
+      username: { $regex: query, $options: 'i' },
+      _id: { $ne: req.user.userId }
+    }).select('username lastActive')
+
+    res.json({
+      status: 'success',
+      users: users.map(user => ({
+        id: user._id,
+        username: user.username,
+        lastActive: user.lastActive
+      }))
+    })
   } catch (error) {
-    console.error('User search error:', error);
-    res.status(500).json({ message: 'Error searching users' });
+    console.error('User search error:', error)
+    res.status(500).json({
+      status: 'error',
+      message: 'Error searching users'
+    })
   }
-});
+})
 
 // Get user profile
-router.get('/:userId', auth, async (req, res) => {
+router.get('/profile', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId)
-      .select('username lastActive createdAt profilePicture');
-    
+    const user = await User.findById(req.user.userId).select('-password')
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({
+        status: 'error',
+        message: 'User not found'
+      })
     }
 
-    res.json(user);
+    res.json({
+      status: 'success',
+      user: {
+        id: user._id,
+        username: user.username,
+        lastActive: user.lastActive,
+        createdAt: user.createdAt
+      }
+    })
   } catch (error) {
-    console.error('Get user error:', error);
-    res.status(500).json({ message: 'Error getting user profile' });
+    console.error('Profile fetch error:', error)
+    res.status(500).json({
+      status: 'error',
+      message: 'Error fetching profile'
+    })
   }
-});
+})
 
-// Update user's own profile
-router.patch('/me', auth, async (req, res) => {
-  const updates = Object.keys(req.body);
-  const allowedUpdates = ['username', 'profilePicture', 'currentPassword', 'newPassword'];
-  const isValidOperation = updates.every((update) => allowedUpdates.includes(update));
-
-  if (!isValidOperation) {
-    return res.status(400).json({ message: 'Invalid updates' });
-  }
-
+// Update user profile
+router.put('/update', authenticateToken, async (req, res) => {
   try {
-    const { username, profilePicture, currentPassword, newPassword } = req.body;
+    const { username } = req.body
 
-    // Handle password update
-    if (currentPassword && newPassword) {
-      const isMatch = await req.user.comparePassword(currentPassword);
-      if (!isMatch) {
-        return res.status(400).json({ message: 'Current password is incorrect' });
+    // Validate username if provided
+    if (username) {
+      if (username.length < 3 || username.length > 20) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Username must be between 3 and 20 characters'
+        })
       }
 
-      // Hash new password
-      const salt = await bcrypt.genSalt(10);
-      req.user.password = await bcrypt.hash(newPassword, salt);
-    }
-
-    // Handle username update
-    if (username) {
-      // Validate username format
-      if (!/^[a-zA-Z0-9_]{3,30}$/.test(username)) {
+      if (!/^[a-zA-Z0-9_]+$/.test(username)) {
         return res.status(400).json({
-          message: 'Username must be 3-30 characters long and can only contain letters, numbers, and underscores'
-        });
+          status: 'error',
+          message: 'Username can only contain letters, numbers, and underscores'
+        })
       }
 
       // Check if username is already taken
-      const existingUser = await User.findOne({
-        _id: { $ne: req.user._id },
-        username: { $regex: new RegExp(`^${username}$`, 'i') }
-      });
-
+      const existingUser = await User.findOne({ 
+        username, 
+        _id: { $ne: req.user.userId }
+      })
+      
       if (existingUser) {
-        return res.status(400).json({ message: 'Username already exists' });
-      }
-
-      req.user.username = username;
-    }
-
-    // Handle profile picture update
-    if (profilePicture) {
-      try {
-        await req.user.updateProfilePicture(profilePicture);
-      } catch (error) {
-        return res.status(400).json({ message: error.message });
+        return res.status(400).json({
+          status: 'error',
+          message: 'Username is already taken'
+        })
       }
     }
 
-    await req.user.save();
+    const user = await User.findByIdAndUpdate(
+      req.user.userId,
+      { 
+        ...(username && { username }),
+        lastActive: new Date()
+      },
+      { new: true }
+    ).select('-password')
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'User not found'
+      })
+    }
 
     res.json({
-      id: req.user._id,
-      username: req.user.username,
-      profilePicture: req.user.profilePicture
-    });
+      status: 'success',
+      message: 'Profile updated successfully',
+      user: {
+        id: user._id,
+        username: user.username,
+        lastActive: user.lastActive,
+        createdAt: user.createdAt
+      }
+    })
   } catch (error) {
-    console.error('Update user error:', error);
-    res.status(500).json({ message: 'Error updating profile' });
+    console.error('Profile update error:', error)
+    res.status(500).json({
+      status: 'error',
+      message: 'Error updating profile'
+    })
   }
-});
+})
 
-// Delete user's own account
-router.delete('/me', auth, async (req, res) => {
-  try {
-    await req.user.remove();
-    res.json({ message: 'Account deleted successfully' });
-  } catch (error) {
-    console.error('Delete user error:', error);
-    res.status(500).json({ message: 'Error deleting account' });
-  }
-});
-
-export default router;
+module.exports = router
